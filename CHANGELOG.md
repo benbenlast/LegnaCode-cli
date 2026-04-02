@@ -2,6 +2,26 @@
 
 All notable changes to LegnaCode CLI will be documented in this file.
 
+## [1.0.7] - 2026-04-02
+
+### New Features
+
+- **TERMINAL_PANEL** — `Alt+J` 切换内置终端面板（tmux 持久化），TerminalCapture 工具可读取终端内容
+- **WEB_BROWSER_TOOL** — 内置 Web 浏览工具，fetch 抓取网页内容并提取文本
+- **TEMPLATES** — 结构化工作流模板系统，`legna new/list/reply` CLI 命令，job 状态追踪
+- **BG_SESSIONS** — 后台会话管理，`legna ps/logs/attach/kill/--bg`，tmux 持久化 + PID 文件发现
+
+### Infrastructure
+
+- 新增 `src/tools/TerminalCaptureTool/` — tmux capture-pane 工具（2 文件）
+- 新增 `src/tools/WebBrowserTool/WebBrowserTool.ts` — fetch + HTML 文本提取
+- 新增 `src/jobs/classifier.ts` — 工作流 turn 分类器
+- 新增 `src/cli/handlers/templateJobs.ts` — 模板 CLI 处理器
+- 新增 `src/cli/bg.ts` — 后台会话 CLI（5 个 handler）
+- 新增 `src/utils/taskSummary.ts` — 周期性活动摘要
+- 新增 `src/utils/udsClient.ts` — 活跃会话枚举
+- 累计已开启 44/87 个 feature flags
+
 ## [1.0.6] - 2026-04-02
 
 ### New Features
