@@ -2,6 +2,37 @@
 
 All notable changes to LegnaCode CLI will be documented in this file.
 
+## [1.0.9] - 2026-04-03
+
+### New Features
+
+- **i18n 多语言补全** — 补全 9 个文件约 100 处遗漏的硬编码英文字符串，覆盖 Spinner、队友树、pill 标签、快捷键提示、Tips 等全部 UI 区域
+- **内置精美状态栏** — 无需配置外部脚本，默认显示目录、Git 分支/同步状态、模型名（智能解析为友好名）、彩色上下文进度条、时间；跨平台兼容 Win/Mac/Linux
+- **配置自动迁移** — 启动时自动将 `~/.claude/settings.json` 同步到 `~/.legna/settings.json`；两边不一致时打印警告不覆盖；`LEGNA_NO_CONFIG_SYNC=1` 禁止迁移
+
+### Changed
+
+- `~/.legna/` 为首选配置目录，`~/.claude/` 作为兼容回退
+- 状态栏模型名自动解析：`Claude-Opus-4-6-Agentic[1m]` → `Opus 4.6`
+- `KeyboardShortcutHint` 组件中 "to" 连接词已国际化（中文显示为 "→"）
+
+### Files Changed
+
+| 文件 | 改动 |
+|------|------|
+| `src/utils/i18n/zh.ts` | +50 条翻译条目 |
+| `src/components/Spinner.tsx` | 7 处 i18n |
+| `src/components/PromptInput/PromptInputFooterLeftSide.tsx` | 4 处 i18n |
+| `src/components/design-system/KeyboardShortcutHint.tsx` | "to" 国际化 |
+| `src/components/Spinner/teammateSelectHint.ts` | i18n |
+| `src/components/Spinner/TeammateSpinnerTree.tsx` | 6 处 i18n |
+| `src/components/Spinner/TeammateSpinnerLine.tsx` | 7 处 i18n |
+| `src/tasks/pillLabel.ts` | 全部 pill 标签 i18n |
+| `src/services/tips/tipRegistry.ts` | 25 条 tips i18n |
+| `src/utils/builtinStatusLine.ts` | 新增：内置状态栏渲染器 |
+| `src/components/StatusLine.tsx` | 集成内置状态栏 |
+| `src/utils/envUtils.ts` | 配置自动迁移逻辑 |
+
 ## [1.0.8] - 2026-04-02
 
 ### New Features

@@ -9,6 +9,7 @@ import {
   type PermissionMode,
 } from '../../types/permissions.js'
 import { lazySchema } from '../lazySchema.js'
+import { t } from '../i18n.js'
 
 // Re-export for backwards compatibility
 export {
@@ -121,7 +122,7 @@ export function permissionModeFromString(str: string): PermissionMode {
 }
 
 export function permissionModeTitle(mode: PermissionMode): string {
-  return getModeConfig(mode).title
+  return t(getModeConfig(mode).title)
 }
 
 export function isDefaultMode(mode: PermissionMode | undefined): boolean {
@@ -129,7 +130,7 @@ export function isDefaultMode(mode: PermissionMode | undefined): boolean {
 }
 
 export function permissionModeShortTitle(mode: PermissionMode): string {
-  return getModeConfig(mode).shortTitle
+  return t(getModeConfig(mode).shortTitle)
 }
 
 export function permissionModeSymbol(mode: PermissionMode): string {

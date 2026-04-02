@@ -1,7 +1,48 @@
 import memoize from 'lodash-es/memoize.js'
-import { existsSync } from 'fs'
+import { copyFileSync, existsSync, mkdirSync, readFileSync } from 'fs'
 import { homedir } from 'os'
 import { join } from 'path'
+
+/**
+ * Sync ~/.claude/settings.json → ~/.legna/settings.json on startup.
+ * - If .legna/settings.json missing but .claude/settings.json exists → copy
+ * - If both exist and differ → warn to stderr, do NOT overwrite
+ * - Disabled by LEGNA_NO_CONFIG_SYNC=1
+ */
+function syncClaudeConfigToLegna(): void {
+  if (process.env.LEGNA_NO_CONFIG_SYNC === '1') return
+  const home = homedir()
+  const claudeSettings = join(home, '.claude', 'settings.json')
+  const legnaDir = join(home, '.legna')
+  const legnaSettings = join(legnaDir, 'settings.json')
+
+  if (!existsSync(claudeSettings)) return
+
+  if (!existsSync(legnaSettings)) {
+    // .claude exists, .legna doesn't → migrate
+    try {
+      if (!existsSync(legnaDir)) mkdirSync(legnaDir, { recursive: true })
+      copyFileSync(claudeSettings, legnaSettings)
+    } catch {
+      // best-effort, don't crash startup
+    }
+    return
+  }
+
+  // Both exist — check if they differ
+  try {
+    const a = readFileSync(claudeSettings, 'utf-8')
+    const b = readFileSync(legnaSettings, 'utf-8')
+    if (a !== b) {
+      process.stderr.write(
+        '\x1b[33m[legna]\x1b[0m ~/.claude/settings.json and ~/.legna/settings.json differ.\n' +
+        '  Using ~/.legna/settings.json. Set LEGNA_NO_CONFIG_SYNC=1 to silence this warning.\n',
+      )
+    }
+  } catch {
+    // ignore read errors
+  }
+}
 
 // Memoized: 150+ callers, many on hot paths. Keyed off CLAUDE_CONFIG_DIR so
 // tests that change the env var get a fresh value without explicit cache.clear.
@@ -12,6 +53,10 @@ export const getClaudeConfigHomeDir = memoize(
     }
     const legnaDir = join(homedir(), '.legna')
     const claudeDir = join(homedir(), '.claude')
+
+    // Sync .claude → .legna before deciding which dir to use
+    syncClaudeConfigToLegna()
+
     // Use .legna if it has config, otherwise fall back to .claude for compat
     if (existsSync(join(legnaDir, 'settings.json')) || existsSync(join(legnaDir, 'sessions'))) {
       return legnaDir.normalize('NFC')

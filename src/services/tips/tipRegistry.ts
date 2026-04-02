@@ -1,6 +1,7 @@
 import chalk from 'chalk'
 import { logForDebugging } from 'src/utils/debug.js'
 import { fileHistoryEnabled } from 'src/utils/fileHistory.js'
+import { isChinese, t } from 'src/utils/i18n.js'
 import {
   getInitialSettings,
   getSettings_DEPRECATED,
@@ -96,7 +97,7 @@ const externalTips: Tip[] = [
   {
     id: 'new-user-warmup',
     content: async () =>
-      `Start with small features or bug fixes, tell LegnaCode to propose a plan, and verify its suggested edits`,
+      t(`Start with small features or bug fixes, tell LegnaCode to propose a plan, and verify its suggested edits`),
     cooldownSessions: 3,
     async isRelevant() {
       const config = getGlobalConfig()
@@ -106,7 +107,9 @@ const externalTips: Tip[] = [
   {
     id: 'plan-mode-for-complex-tasks',
     content: async () =>
-      `Use Plan Mode to prepare for a complex request before making changes. Press ${getShortcutDisplay('chat:cycleMode', 'Chat', 'shift+tab')} twice to enable.`,
+      isChinese()
+        ? `使用计划模式准备复杂请求。按 ${getShortcutDisplay('chat:cycleMode', 'Chat', 'shift+tab')} 两次启用。`
+        : `Use Plan Mode to prepare for a complex request before making changes. Press ${getShortcutDisplay('chat:cycleMode', 'Chat', 'shift+tab')} twice to enable.`,
     cooldownSessions: 5,
     isRelevant: async () => {
       if (process.env.USER_TYPE === 'ant') return false
@@ -121,7 +124,7 @@ const externalTips: Tip[] = [
   {
     id: 'default-permission-mode-config',
     content: async () =>
-      `Use /config to change your default permission mode (including Plan Mode)`,
+      t(`Use /config to change your default permission mode (including Plan Mode)`),
     cooldownSessions: 10,
     isRelevant: async () => {
       try {
@@ -143,7 +146,7 @@ const externalTips: Tip[] = [
   {
     id: 'git-worktrees',
     content: async () =>
-      'Use git worktrees to run multiple LegnaCode sessions in parallel.',
+      t('Use git worktrees to run multiple LegnaCode sessions in parallel.'),
     cooldownSessions: 10,
     isRelevant: async () => {
       try {
@@ -158,7 +161,7 @@ const externalTips: Tip[] = [
   {
     id: 'color-when-multi-clauding',
     content: async () =>
-      'Running multiple LegnaCode sessions? Use /color and /rename to tell them apart at a glance.',
+      t('Running multiple LegnaCode sessions? Use /color and /rename to tell them apart at a glance.'),
     cooldownSessions: 10,
     isRelevant: async () => {
       if (getCurrentSessionAgentColor()) return false
@@ -169,9 +172,13 @@ const externalTips: Tip[] = [
   {
     id: 'terminal-setup',
     content: async () =>
-      env.terminal === 'Apple_Terminal'
-        ? 'Run /terminal-setup to enable convenient terminal integration like Option + Enter for new line and more'
-        : 'Run /terminal-setup to enable convenient terminal integration like Shift + Enter for new line and more',
+      isChinese()
+        ? (env.terminal === 'Apple_Terminal'
+          ? '运行 /terminal-setup 启用终端集成，如 Option + Enter 换行等'
+          : '运行 /terminal-setup 启用终端集成，如 Shift + Enter 换行等')
+        : (env.terminal === 'Apple_Terminal'
+          ? 'Run /terminal-setup to enable convenient terminal integration like Option + Enter for new line and more'
+          : 'Run /terminal-setup to enable convenient terminal integration like Shift + Enter for new line and more'),
     cooldownSessions: 10,
     async isRelevant() {
       const config = getGlobalConfig()
@@ -184,9 +191,13 @@ const externalTips: Tip[] = [
   {
     id: 'shift-enter',
     content: async () =>
-      env.terminal === 'Apple_Terminal'
-        ? 'Press Option+Enter to send a multi-line message'
-        : 'Press Shift+Enter to send a multi-line message',
+      isChinese()
+        ? (env.terminal === 'Apple_Terminal'
+          ? '按 Option+Enter 发送多行消息'
+          : '按 Shift+Enter 发送多行消息')
+        : (env.terminal === 'Apple_Terminal'
+          ? 'Press Option+Enter to send a multi-line message'
+          : 'Press Shift+Enter to send a multi-line message'),
     cooldownSessions: 10,
     async isRelevant() {
       const config = getGlobalConfig()
@@ -200,9 +211,13 @@ const externalTips: Tip[] = [
   {
     id: 'shift-enter-setup',
     content: async () =>
-      env.terminal === 'Apple_Terminal'
-        ? 'Run /terminal-setup to enable Option+Enter for new lines'
-        : 'Run /terminal-setup to enable Shift+Enter for new lines',
+      isChinese()
+        ? (env.terminal === 'Apple_Terminal'
+          ? '运行 /terminal-setup 启用 Option+Enter 换行'
+          : '运行 /terminal-setup 启用 Shift+Enter 换行')
+        : (env.terminal === 'Apple_Terminal'
+          ? 'Run /terminal-setup to enable Option+Enter for new lines'
+          : 'Run /terminal-setup to enable Shift+Enter for new lines'),
     cooldownSessions: 10,
     async isRelevant() {
       if (!shouldOfferTerminalSetup()) {
@@ -216,7 +231,7 @@ const externalTips: Tip[] = [
   },
   {
     id: 'memory-command',
-    content: async () => 'Use /memory to view and manage LegnaCode memory',
+    content: async () => t('Use /memory to view and manage LegnaCode memory'),
     cooldownSessions: 15,
     async isRelevant() {
       const config = getGlobalConfig()
@@ -225,21 +240,21 @@ const externalTips: Tip[] = [
   },
   {
     id: 'theme-command',
-    content: async () => 'Use /theme to change the color theme',
+    content: async () => t('Use /theme to change the color theme'),
     cooldownSessions: 20,
     isRelevant: async () => true,
   },
   {
     id: 'colorterm-truecolor',
     content: async () =>
-      'Try setting environment variable COLORTERM=truecolor for richer colors',
+      t('Try setting environment variable COLORTERM=truecolor for richer colors'),
     cooldownSessions: 30,
     isRelevant: async () => !process.env.COLORTERM && chalk.level < 3,
   },
   {
     id: 'powershell-tool-env',
     content: async () =>
-      'Set CLAUDE_CODE_USE_POWERSHELL_TOOL=1 to enable the PowerShell tool (preview)',
+      t('Set CLAUDE_CODE_USE_POWERSHELL_TOOL=1 to enable the PowerShell tool (preview)'),
     cooldownSessions: 10,
     isRelevant: async () =>
       getPlatform() === 'windows' &&
@@ -248,14 +263,14 @@ const externalTips: Tip[] = [
   {
     id: 'status-line',
     content: async () =>
-      'Use /statusline to set up a custom status line that will display beneath the input box',
+      t('Use /statusline to set up a custom status line that will display beneath the input box'),
     cooldownSessions: 25,
     isRelevant: async () => getSettings_DEPRECATED().statusLine === undefined,
   },
   {
     id: 'prompt-queue',
     content: async () =>
-      'Hit Enter to queue up additional messages while LegnaCode is working.',
+      t('Hit Enter to queue up additional messages while LegnaCode is working.'),
     cooldownSessions: 5,
     async isRelevant() {
       const config = getGlobalConfig()
@@ -265,21 +280,23 @@ const externalTips: Tip[] = [
   {
     id: 'enter-to-steer-in-relatime',
     content: async () =>
-      'Send messages to LegnaCode while it works to steer LegnaCode in real-time',
+      t('Send messages to LegnaCode while it works to steer LegnaCode in real-time'),
     cooldownSessions: 20,
     isRelevant: async () => true,
   },
   {
     id: 'todo-list',
     content: async () =>
-      'Ask LegnaCode to create a todo list when working on complex tasks to track progress and remain on track',
+      t('Ask LegnaCode to create a todo list when working on complex tasks to track progress and remain on track'),
     cooldownSessions: 20,
     isRelevant: async () => true,
   },
   {
     id: 'vscode-command-install',
     content: async () =>
-      `Open the Command Palette (Cmd+Shift+P) and run "Shell Command: Install '${env.terminal === 'vscode' ? 'code' : env.terminal}' command in PATH" to enable IDE integration`,
+      isChinese()
+        ? `打开命令面板 (Cmd+Shift+P) 运行 "Shell Command: Install '${env.terminal === 'vscode' ? 'code' : env.terminal}' command in PATH" 启用 IDE 集成`
+        : `Open the Command Palette (Cmd+Shift+P) and run "Shell Command: Install '${env.terminal === 'vscode' ? 'code' : env.terminal}' command in PATH" to enable IDE integration`,
     cooldownSessions: 0,
     async isRelevant() {
       // Only show this tip if we're in a VS Code-style terminal
@@ -305,7 +322,7 @@ const externalTips: Tip[] = [
   },
   {
     id: 'ide-upsell-external-terminal',
-    content: async () => 'Connect LegnaCode to your IDE · /ide',
+    content: async () => t('Connect LegnaCode to your IDE · /ide'),
     cooldownSessions: 4,
     async isRelevant() {
       if (isSupportedTerminal()) {
@@ -325,20 +342,20 @@ const externalTips: Tip[] = [
   {
     id: 'install-github-app',
     content: async () =>
-      'Run /install-github-app to tag @claude right from your Github issues and PRs',
+      t('Run /install-github-app to tag @claude right from your Github issues and PRs'),
     cooldownSessions: 10,
     isRelevant: async () => !getGlobalConfig().githubActionSetupCount,
   },
   {
     id: 'install-slack-app',
-    content: async () => 'Run /install-slack-app to use LegnaCode in Slack',
+    content: async () => t('Run /install-slack-app to use LegnaCode in Slack'),
     cooldownSessions: 10,
     isRelevant: async () => !getGlobalConfig().slackAppInstallCount,
   },
   {
     id: 'permissions',
     content: async () =>
-      'Use /permissions to pre-approve and pre-deny bash, edit, and MCP tools',
+      t('Use /permissions to pre-approve and pre-deny bash, edit, and MCP tools'),
     cooldownSessions: 10,
     async isRelevant() {
       const config = getGlobalConfig()
@@ -348,42 +365,42 @@ const externalTips: Tip[] = [
   {
     id: 'drag-and-drop-images',
     content: async () =>
-      'Did you know you can drag and drop image files into your terminal?',
+      t('Did you know you can drag and drop image files into your terminal?'),
     cooldownSessions: 10,
     isRelevant: async () => !env.isSSH(),
   },
   {
     id: 'paste-images-mac',
     content: async () =>
-      'Paste images into LegnaCode using control+v (not cmd+v!)',
+      t('Paste images into LegnaCode using control+v (not cmd+v!)'),
     cooldownSessions: 10,
     isRelevant: async () => getPlatform() === 'macos',
   },
   {
     id: 'double-esc',
     content: async () =>
-      'Double-tap esc to rewind the conversation to a previous point in time',
+      t('Double-tap esc to rewind the conversation to a previous point in time'),
     cooldownSessions: 10,
     isRelevant: async () => !fileHistoryEnabled(),
   },
   {
     id: 'double-esc-code-restore',
     content: async () =>
-      'Double-tap esc to rewind the code and/or conversation to a previous point in time',
+      t('Double-tap esc to rewind the code and/or conversation to a previous point in time'),
     cooldownSessions: 10,
     isRelevant: async () => fileHistoryEnabled(),
   },
   {
     id: 'continue',
     content: async () =>
-      'Run legna --continue or legna --resume to resume a conversation',
+      t('Run legna --continue or legna --resume to resume a conversation'),
     cooldownSessions: 10,
     isRelevant: async () => true,
   },
   {
     id: 'rename-conversation',
     content: async () =>
-      'Name your conversations with /rename to find them easily in /resume later',
+      t('Name your conversations with /rename to find them easily in /resume later'),
     cooldownSessions: 15,
     isRelevant: async () =>
       isCustomTitleEnabled() && getGlobalConfig().numStartups > 10,
@@ -391,7 +408,7 @@ const externalTips: Tip[] = [
   {
     id: 'custom-commands',
     content: async () =>
-      'Create skills by adding .md files to .claude/skills/ in your project or ~/.claude/skills/ for skills that work in any project',
+      t('Create skills by adding .md files to .claude/skills/ in your project or ~/.claude/skills/ for skills that work in any project'),
     cooldownSessions: 15,
     async isRelevant() {
       const config = getGlobalConfig()
@@ -401,23 +418,29 @@ const externalTips: Tip[] = [
   {
     id: 'shift-tab',
     content: async () =>
-      process.env.USER_TYPE === 'ant'
-        ? `Hit ${getShortcutDisplay('chat:cycleMode', 'Chat', 'shift+tab')} to cycle between default mode and auto mode`
-        : `Hit ${getShortcutDisplay('chat:cycleMode', 'Chat', 'shift+tab')} to cycle between default mode, auto-accept edit mode, and plan mode`,
+      isChinese()
+        ? (process.env.USER_TYPE === 'ant'
+          ? `按 ${getShortcutDisplay('chat:cycleMode', 'Chat', 'shift+tab')} 在默认模式和自动模式之间切换`
+          : `按 ${getShortcutDisplay('chat:cycleMode', 'Chat', 'shift+tab')} 在默认模式、自动接受编辑模式和计划模式之间切换`)
+        : (process.env.USER_TYPE === 'ant'
+          ? `Hit ${getShortcutDisplay('chat:cycleMode', 'Chat', 'shift+tab')} to cycle between default mode and auto mode`
+          : `Hit ${getShortcutDisplay('chat:cycleMode', 'Chat', 'shift+tab')} to cycle between default mode, auto-accept edit mode, and plan mode`),
     cooldownSessions: 10,
     isRelevant: async () => true,
   },
   {
     id: 'image-paste',
     content: async () =>
-      `Use ${getShortcutDisplay('chat:imagePaste', 'Chat', 'ctrl+v')} to paste images from your clipboard`,
+      isChinese()
+        ? `使用 ${getShortcutDisplay('chat:imagePaste', 'Chat', 'ctrl+v')} 从剪贴板粘贴图片`
+        : `Use ${getShortcutDisplay('chat:imagePaste', 'Chat', 'ctrl+v')} to paste images from your clipboard`,
     cooldownSessions: 20,
     isRelevant: async () => true,
   },
   {
     id: 'custom-agents',
     content: async () =>
-      'Use /agents to optimize specific tasks. Eg. Software Architect, Code Writer, Code Reviewer',
+      t('Use /agents to optimize specific tasks. Eg. Software Architect, Code Writer, Code Reviewer'),
     cooldownSessions: 15,
     async isRelevant() {
       const config = getGlobalConfig()
@@ -427,7 +450,7 @@ const externalTips: Tip[] = [
   {
     id: 'agent-flag',
     content: async () =>
-      'Use --agent <agent_name> to directly start a conversation with a subagent',
+      t('Use --agent <agent_name> to directly start a conversation with a subagent'),
     cooldownSessions: 15,
     async isRelevant() {
       const config = getGlobalConfig()
@@ -437,7 +460,7 @@ const externalTips: Tip[] = [
   {
     id: 'desktop-app',
     content: async () =>
-      'Run LegnaCode locally or remotely using the Claude desktop app: clau.de/desktop',
+      t('Run LegnaCode locally or remotely using the Claude desktop app: clau.de/desktop'),
     cooldownSessions: 15,
     isRelevant: async () => getPlatform() !== 'linux',
   },
@@ -445,7 +468,9 @@ const externalTips: Tip[] = [
     id: 'desktop-shortcut',
     content: async ctx => {
       const blue = color('suggestion', ctx.theme)
-      return `Continue your session in LegnaCode Desktop with ${blue('/desktop')}`
+      return isChinese()
+        ? `在 LegnaCode 桌面版中继续你的会话 ${blue('/desktop')}`
+        : `Continue your session in LegnaCode Desktop with ${blue('/desktop')}`
     },
     cooldownSessions: 15,
     isRelevant: async () => {
@@ -459,21 +484,23 @@ const externalTips: Tip[] = [
   {
     id: 'web-app',
     content: async () =>
-      'Run tasks in the cloud while you keep coding locally · clau.de/web',
+      t('Run tasks in the cloud while you keep coding locally · clau.de/web'),
     cooldownSessions: 15,
     isRelevant: async () => true,
   },
   {
     id: 'mobile-app',
     content: async () =>
-      '/mobile to use LegnaCode from the LegnaCode app on your phone',
+      t('/mobile to use LegnaCode from the LegnaCode app on your phone'),
     cooldownSessions: 15,
     isRelevant: async () => true,
   },
   {
     id: 'opusplan-mode-reminder',
     content: async () =>
-      `Your default model setting is Opus Plan Mode. Press ${getShortcutDisplay('chat:cycleMode', 'Chat', 'shift+tab')} twice to activate Plan Mode and plan with LegnaCode Opus.`,
+      isChinese()
+        ? `你的默认模型设置是 Opus 计划模式。按 ${getShortcutDisplay('chat:cycleMode', 'Chat', 'shift+tab')} 两次激活计划模式，使用 LegnaCode Opus 进行规划。`
+        : `Your default model setting is Opus Plan Mode. Press ${getShortcutDisplay('chat:cycleMode', 'Chat', 'shift+tab')} twice to activate Plan Mode and plan with LegnaCode Opus.`,
     cooldownSessions: 2,
     async isRelevant() {
       if (process.env.USER_TYPE === 'ant') return false
@@ -491,7 +518,9 @@ const externalTips: Tip[] = [
     id: 'frontend-design-plugin',
     content: async ctx => {
       const blue = color('suggestion', ctx.theme)
-      return `Working with HTML/CSS? Install the frontend-design plugin:\n${blue(`/plugin install frontend-design@${OFFICIAL_MARKETPLACE_NAME}`)}`
+      return isChinese()
+        ? `使用 HTML/CSS？安装 frontend-design 插件：\n${blue(`/plugin install frontend-design@${OFFICIAL_MARKETPLACE_NAME}`)}`
+        : `Working with HTML/CSS? Install the frontend-design plugin:\n${blue(`/plugin install frontend-design@${OFFICIAL_MARKETPLACE_NAME}`)}`
     },
     cooldownSessions: 3,
     isRelevant: async context =>
@@ -503,7 +532,9 @@ const externalTips: Tip[] = [
     id: 'vercel-plugin',
     content: async ctx => {
       const blue = color('suggestion', ctx.theme)
-      return `Working with Vercel? Install the vercel plugin:\n${blue(`/plugin install vercel@${OFFICIAL_MARKETPLACE_NAME}`)}`
+      return isChinese()
+        ? `使用 Vercel？安装 vercel 插件：\n${blue(`/plugin install vercel@${OFFICIAL_MARKETPLACE_NAME}`)}`
+        : `Working with Vercel? Install the vercel plugin:\n${blue(`/plugin install vercel@${OFFICIAL_MARKETPLACE_NAME}`)}`
     },
     cooldownSessions: 3,
     isRelevant: async context =>
@@ -520,6 +551,11 @@ const externalTips: Tip[] = [
       const variant = getFeatureValue_CACHED_MAY_BE_STALE<
         'off' | 'copy_a' | 'copy_b'
       >('tengu_tide_elm', 'off')
+      if (isChinese()) {
+        return variant === 'copy_b'
+          ? `使用 ${cmd} 获得更好的一次性回答。LegnaCode 会先深入思考。`
+          : `处理棘手问题？${cmd} 能给出更好的首次回答`
+      }
       return variant === 'copy_b'
         ? `Use ${cmd} for better one-shot answers. LegnaCode thinks it through first.`
         : `Working on something tricky? ${cmd} gives better first answers`
@@ -549,6 +585,11 @@ const externalTips: Tip[] = [
       const variant = getFeatureValue_CACHED_MAY_BE_STALE<
         'off' | 'copy_a' | 'copy_b'
       >('tengu_tern_alloy', 'off')
+      if (isChinese()) {
+        return variant === 'copy_b'
+          ? `大型任务？让 LegnaCode ${blue('使用子代理')}。它们并行工作，保持主线程整洁。`
+          : `说 ${blue('"分发子代理"')}，LegnaCode 会派出团队。每个都深入挖掘，不遗漏任何细节。`
+      }
       return variant === 'copy_b'
         ? `For big tasks, tell LegnaCode to ${blue('use subagents')}. They work in parallel and keep your main thread clean.`
         : `Say ${blue('"fan out subagents"')} and LegnaCode sends a team. Each one digs deep so nothing gets missed.`
@@ -571,6 +612,11 @@ const externalTips: Tip[] = [
       const variant = getFeatureValue_CACHED_MAY_BE_STALE<
         'off' | 'copy_a' | 'copy_b'
       >('tengu_timber_lark', 'off')
+      if (isChinese()) {
+        return variant === 'copy_b'
+          ? `使用 ${blue('/loop 5m check the deploy')} 按计划运行任何提示。设置后就不用管了。`
+          : `${blue('/loop')} 按循环计划运行任何提示。适合监控部署、看管 PR 或轮询状态。`
+      }
       return variant === 'copy_b'
         ? `Use ${blue('/loop 5m check the deploy')} to run any prompt on a schedule. Set it and forget it.`
         : `${blue('/loop')} runs any prompt on a recurring schedule. Great for monitoring deploys, babysitting PRs, or polling status.`
@@ -592,6 +638,11 @@ const externalTips: Tip[] = [
     content: async ctx => {
       const claude = color('claude', ctx.theme)
       const reward = getCachedReferrerReward()
+      if (isChinese()) {
+        return reward
+          ? `分享 LegnaCode 赚取 ${claude(formatCreditAmount(reward))} 额外用量 · ${claude('/passes')}`
+          : `你有免费的邀请码可以分享 · ${claude('/passes')}`
+      }
       return reward
         ? `Share LegnaCode and earn ${claude(formatCreditAmount(reward))} of extra usage · ${claude('/passes')}`
         : `You have free guest passes to share · ${claude('/passes')}`
@@ -621,7 +672,7 @@ const externalTips: Tip[] = [
   },
   {
     id: 'feedback-command',
-    content: async () => 'Use /feedback to help us improve!',
+    content: async () => t('Use /feedback to help us improve!'),
     cooldownSessions: 15,
     async isRelevant() {
       if (process.env.USER_TYPE === 'ant') {

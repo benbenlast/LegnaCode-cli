@@ -5,6 +5,7 @@ import { Box, Text, type TextProps } from '../../ink.js';
 import { useAppState } from '../../state/AppState.js';
 import { getRunningTeammatesSorted } from '../../tasks/InProcessTeammateTask/InProcessTeammateTask.js';
 import { formatNumber } from '../../utils/format.js';
+import { t } from '../../utils/i18n.js';
 import { TeammateSpinnerLine } from './TeammateSpinnerLine.js';
 import { TEAMMATE_SELECT_HINT } from './teammateSelectHint.js';
 type Props = {
@@ -80,7 +81,7 @@ export function TeammateSpinnerTree(t0) {
       const t12 = isLeaderSelected ? "suggestion" : "cyan_FOR_SUBAGENTS_ONLY";
       let t13;
       if ($[24] !== isLeaderHighlighted || $[25] !== t12) {
-        t13 = <Text bold={isLeaderHighlighted} color={t12}>team-lead</Text>;
+        t13 = <Text bold={isLeaderHighlighted} color={t12}>{t('team-lead')}</Text>;
         $[24] = isLeaderHighlighted;
         $[25] = t12;
         $[26] = t13;
@@ -108,7 +109,7 @@ export function TeammateSpinnerTree(t0) {
       }
       let t16;
       if ($[34] !== isLeaderHighlighted || $[35] !== leaderTokenCount) {
-        t16 = leaderTokenCount !== undefined && leaderTokenCount > 0 && <Text dimColor={!isLeaderHighlighted}>{" "}· {formatNumber(leaderTokenCount)} tokens</Text>;
+        t16 = leaderTokenCount !== undefined && leaderTokenCount > 0 && <Text dimColor={!isLeaderHighlighted}>{" "}· {formatNumber(leaderTokenCount)} {t('tokens')}</Text>;
         $[34] = isLeaderHighlighted;
         $[35] = leaderTokenCount;
         $[36] = t16;
@@ -125,7 +126,7 @@ export function TeammateSpinnerTree(t0) {
       }
       let t18;
       if ($[39] !== isLeaderForegrounded || $[40] !== isLeaderSelected) {
-        t18 = isLeaderSelected && !isLeaderForegrounded && <Text dimColor={true}> · enter to view</Text>;
+        t18 = isLeaderSelected && !isLeaderForegrounded && <Text dimColor={true}> · {t('enter to view')}</Text>;
         $[39] = isLeaderForegrounded;
         $[40] = isLeaderSelected;
         $[41] = t18;
@@ -241,7 +242,7 @@ function HideRow(t0) {
   const t7 = !isSelected;
   let t8;
   if ($[8] !== isSelected || $[9] !== t7) {
-    t8 = <Text dimColor={t7} bold={isSelected}>hide</Text>;
+    t8 = <Text dimColor={t7} bold={isSelected}>{t('hide')}</Text>;
     $[8] = isSelected;
     $[9] = t7;
     $[10] = t8;
@@ -250,7 +251,7 @@ function HideRow(t0) {
   }
   let t9;
   if ($[11] !== isSelected) {
-    t9 = isSelected && <Text dimColor={true}> · enter to collapse</Text>;
+    t9 = isSelected && <Text dimColor={true}> · {t('enter to collapse')}</Text>;
     $[11] = isSelected;
     $[12] = t9;
   } else {

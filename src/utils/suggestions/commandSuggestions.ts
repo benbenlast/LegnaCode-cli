@@ -7,6 +7,7 @@ import {
 } from '../../commands.js'
 import type { SuggestionItem } from '../../components/PromptInput/PromptInputFooterSuggestions.js'
 import { getSkillUsageScore } from './skillUsageTracking.js'
+import { t, tf } from '../i18n.js'
 
 // Treat these characters as word separators for command search
 const SEPARATORS = /[:_-]/g
@@ -272,15 +273,15 @@ function createCommandSuggestionItem(
 
   const isWorkflow = cmd.type === 'prompt' && cmd.kind === 'workflow'
   const fullDescription =
-    (isWorkflow ? cmd.description : formatDescriptionWithSource(cmd)) +
+    (isWorkflow ? t(cmd.description) : formatDescriptionWithSource(cmd)) +
     (cmd.type === 'prompt' && cmd.argNames?.length
-      ? ` (arguments: ${cmd.argNames.join(', ')})`
+      ? ` ${tf('(arguments: {0})', cmd.argNames.join(', '))}`
       : '')
 
   return {
     id: getCommandId(cmd),
     displayText: `/${commandName}${aliasText}`,
-    tag: isWorkflow ? 'workflow' : undefined,
+    tag: isWorkflow ? t('workflow') : undefined,
     description: fullDescription,
     metadata: cmd,
   }

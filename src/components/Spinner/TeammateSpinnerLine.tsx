@@ -11,6 +11,7 @@ import { Box, Text } from '../../ink.js';
 import type { InProcessTeammateTaskState } from '../../tasks/InProcessTeammateTask/types.js';
 import { summarizeRecentActivities } from '../../utils/collapseReadSearch.js';
 import { formatDuration, formatNumber, truncateToWidth } from '../../utils/format.js';
+import { t, tf } from '../../utils/i18n.js';
 import { toInkColor } from '../../utils/ink.js';
 import { TEAMMATE_SELECT_HINT } from './teammateSelectHint.js';
 type Props = {
@@ -45,7 +46,7 @@ function getMessagePreview(messages: InProcessTeammateTaskState['messages']): st
       if ('type' in block && block.type === 'tool_use' && 'name' in block) {
         // Try to show meaningful info from tool input
         const input = 'input' in block ? block.input as Record<string, unknown> : null;
-        let toolLine = `Using ${block.name}…`;
+        let toolLine = tf('Using {0}…', block.name as string);
         if (input) {
           // Look for common descriptive fields
           const desc = input.description as string | undefined || input.prompt as string | undefined || input.command as string | undefined || input.query as string | undefined || input.pattern as string | undefined;
@@ -127,11 +128,11 @@ export function TeammateSpinnerLine({
   // Get stats from progress
   const toolUseCount = teammate.progress?.toolUseCount ?? 0;
   const tokenCount = teammate.progress?.tokenCount ?? 0;
-  const statsText = ` · ${toolUseCount} tool ${toolUseCount === 1 ? 'use' : 'uses'} · ${formatNumber(tokenCount)} tokens`;
+  const statsText = ` · ${tf(toolUseCount === 1 ? '{0} tool use' : '{0} tool uses', String(toolUseCount))} · ${formatNumber(tokenCount)} ${t('tokens')}`;
   const statsWidth = stringWidth(statsText);
   const selectHintText = ` · ${TEAMMATE_SELECT_HINT}`;
   const selectHintWidth = stringWidth(selectHintText);
-  const viewHintText = ' · enter to view';
+  const viewHintText = ` · ${t('enter to view')}`;
   const viewHintWidth = stringWidth(viewHintText);
 
   // Progressive responsive layout:
@@ -171,10 +172,10 @@ export function TeammateSpinnerLine({
   // Status rendering logic
   const renderStatus = (): React.ReactNode => {
     if (teammate.shutdownRequested) {
-      return <Text dimColor>[stopping]</Text>;
+      return <Text dimColor>{t('[stopping]')}</Text>;
     }
     if (teammate.awaitingPlanApproval) {
-      return <Text color="warning">[awaiting approval]</Text>;
+      return <Text color="warning">{t('[awaiting approval]')}</Text>;
     }
     if (teammate.isIdle) {
       if (allIdle) {
@@ -182,7 +183,7 @@ export function TeammateSpinnerLine({
             {pastTenseVerb} for {displayTime}
           </Text>;
       }
-      return <Text dimColor>Idle for {idleElapsedTime}</Text>;
+      return <Text dimColor>{tf('Idle for {0}', idleElapsedTime)}</Text>;
     }
     // Active - show spinner glyph + activity description (only when not highlighted;
     // when highlighted, the main spinner above already shows the verb)
@@ -215,12 +216,12 @@ export function TeammateSpinnerLine({
         {/* Stats: only shown when selected and terminal is wide enough */}
         {showStats && <Text dimColor>
             {' '}
-            · {toolUseCount} tool {toolUseCount === 1 ? 'use' : 'uses'} ·{' '}
-            {formatNumber(tokenCount)} tokens
+            · {tf(toolUseCount === 1 ? '{0} tool use' : '{0} tool uses', String(toolUseCount))} ·{' '}
+            {formatNumber(tokenCount)} {t('tokens')}
           </Text>}
         {/* Hints: select hint when highlighted, view hint when selected but not foregrounded */}
         {showSelectHint && <Text dimColor> · {TEAMMATE_SELECT_HINT}</Text>}
-        {showViewHint && <Text dimColor> · enter to view</Text>}
+        {showViewHint && <Text dimColor> · {t('enter to view')}</Text>}
       </Box>
       {/* Preview lines */}
       {previewLines.map((line, idx) => <Box key={idx} paddingLeft={3}>

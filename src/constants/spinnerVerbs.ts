@@ -1,16 +1,54 @@
 import { getInitialSettings } from '../utils/settings/settings.js'
+import { isChinese } from '../utils/i18n.js'
 
 export function getSpinnerVerbs(): string[] {
   const settings = getInitialSettings()
   const config = settings.spinnerVerbs
-  if (!config) {
-    return SPINNER_VERBS
+  if (config) {
+    if (config.mode === 'replace') {
+      return config.verbs.length > 0 ? config.verbs : getDefaultVerbs()
+    }
+    return [...getDefaultVerbs(), ...config.verbs]
   }
-  if (config.mode === 'replace') {
-    return config.verbs.length > 0 ? config.verbs : SPINNER_VERBS
-  }
-  return [...SPINNER_VERBS, ...config.verbs]
+  return getDefaultVerbs()
 }
+
+function getDefaultVerbs(): string[] {
+  return isChinese() ? SPINNER_VERBS_ZH : SPINNER_VERBS
+}
+
+const SPINNER_VERBS_ZH = [
+  '思索中',
+  '琢磨中',
+  '推敲中',
+  '构思中',
+  '酝酿中',
+  '运算中',
+  '编织中',
+  '雕琢中',
+  '打磨中',
+  '烹饪中',
+  '调配中',
+  '冥想中',
+  '沉思中',
+  '探索中',
+  '钻研中',
+  '领悟中',
+  '参悟中',
+  '推演中',
+  '解析中',
+  '编排中',
+  '调试中',
+  '组装中',
+  '搭建中',
+  '铸造中',
+  '锻造中',
+  '炼制中',
+  '孵化中',
+  '萌芽中',
+  '发酵中',
+  '蒸馏中',
+]
 
 // Spinner verbs for loading messages
 export const SPINNER_VERBS = [

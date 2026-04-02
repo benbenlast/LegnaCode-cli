@@ -1,5 +1,6 @@
 import { DIAMOND_FILLED, DIAMOND_OPEN } from '../constants/figures.js'
 import { count } from '../utils/array.js'
+import { t, tf } from '../utils/i18n.js'
 import type { BackgroundTaskState } from './types.js'
 
 /**
@@ -9,33 +10,33 @@ import type { BackgroundTaskState } from './types.js'
  */
 export function getPillLabel(tasks: BackgroundTaskState[]): string {
   const n = tasks.length
-  const allSameType = tasks.every(t => t.type === tasks[0]!.type)
+  const allSameType = tasks.every(tk => tk.type === tasks[0]!.type)
 
   if (allSameType) {
     switch (tasks[0]!.type) {
       case 'local_bash': {
         const monitors = count(
           tasks,
-          t => t.type === 'local_bash' && t.kind === 'monitor',
+          tk => tk.type === 'local_bash' && tk.kind === 'monitor',
         )
         const shells = n - monitors
         const parts: string[] = []
         if (shells > 0)
-          parts.push(shells === 1 ? '1 shell' : `${shells} shells`)
+          parts.push(shells === 1 ? t('1 shell') : tf('{0} shells', String(shells)))
         if (monitors > 0)
-          parts.push(monitors === 1 ? '1 monitor' : `${monitors} monitors`)
+          parts.push(monitors === 1 ? t('1 monitor') : tf('{0} monitors', String(monitors)))
         return parts.join(', ')
       }
       case 'in_process_teammate': {
         const teamCount = new Set(
-          tasks.map(t =>
-            t.type === 'in_process_teammate' ? t.identity.teamName : '',
+          tasks.map(tk =>
+            tk.type === 'in_process_teammate' ? tk.identity.teamName : '',
           ),
         ).size
-        return teamCount === 1 ? '1 team' : `${teamCount} teams`
+        return teamCount === 1 ? t('1 team') : tf('{0} teams', String(teamCount))
       }
       case 'local_agent':
-        return n === 1 ? '1 local agent' : `${n} local agents`
+        return n === 1 ? t('1 local agent') : tf('{0} local agents', String(n))
       case 'remote_agent': {
         const first = tasks[0]!
         // Per design mockup: ◇ open diamond while running/needs-input,
@@ -43,27 +44,27 @@ export function getPillLabel(tasks: BackgroundTaskState[]): string {
         if (n === 1 && first.type === 'remote_agent' && first.isUltraplan) {
           switch (first.ultraplanPhase) {
             case 'plan_ready':
-              return `${DIAMOND_FILLED} ultraplan ready`
+              return `${DIAMOND_FILLED} ${t('ultraplan ready')}`
             case 'needs_input':
-              return `${DIAMOND_OPEN} ultraplan needs your input`
+              return `${DIAMOND_OPEN} ${t('ultraplan needs your input')}`
             default:
-              return `${DIAMOND_OPEN} ultraplan`
+              return `${DIAMOND_OPEN} ${t('ultraplan')}`
           }
         }
         return n === 1
-          ? `${DIAMOND_OPEN} 1 cloud session`
-          : `${DIAMOND_OPEN} ${n} cloud sessions`
+          ? `${DIAMOND_OPEN} ${t('1 cloud session')}`
+          : `${DIAMOND_OPEN} ${tf('{0} cloud sessions', String(n))}`
       }
       case 'local_workflow':
-        return n === 1 ? '1 background workflow' : `${n} background workflows`
+        return n === 1 ? t('1 background workflow') : tf('{0} background workflows', String(n))
       case 'monitor_mcp':
-        return n === 1 ? '1 monitor' : `${n} monitors`
+        return n === 1 ? t('1 monitor') : tf('{0} monitors', String(n))
       case 'dream':
-        return 'dreaming'
+        return t('dreaming')
     }
   }
 
-  return `${n} background ${n === 1 ? 'task' : 'tasks'}`
+  return n === 1 ? tf('{0} background task', String(n)) : tf('{0} background tasks', String(n))
 }
 
 /**
@@ -73,10 +74,10 @@ export function getPillLabel(tasks: BackgroundTaskState[]): string {
  */
 export function pillNeedsCta(tasks: BackgroundTaskState[]): boolean {
   if (tasks.length !== 1) return false
-  const t = tasks[0]!
+  const tk = tasks[0]!
   return (
-    t.type === 'remote_agent' &&
-    t.isUltraplan === true &&
-    t.ultraplanPhase !== undefined
+    tk.type === 'remote_agent' &&
+    tk.isUltraplan === true &&
+    tk.ultraplanPhase !== undefined
   )
 }
