@@ -3,19 +3,18 @@
 // agent / task registry / message builder chain that autoDream.ts pulls in.
 
 import { getInitialSettings } from '../../utils/settings/settings.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../analytics/growthbook.js'
 
 /**
  * Whether background memory consolidation should run. User setting
- * (autoDreamEnabled in settings.json) overrides the GrowthBook default
- * when explicitly set; otherwise falls through to tengu_onyx_plover.
+ * (autoDreamEnabled in settings.json) overrides the default when
+ * explicitly set; otherwise enabled by default.
+ *
+ * Original upstream gated this on GrowthBook's tengu_onyx_plover flag.
+ * Without a GrowthBook connection, we default to true — auto-dream is
+ * a high-value feature that should work out of the box.
  */
 export function isAutoDreamEnabled(): boolean {
   const setting = getInitialSettings().autoDreamEnabled
   if (setting !== undefined) return setting
-  const gb = getFeatureValue_CACHED_MAY_BE_STALE<{ enabled?: unknown } | null>(
-    'tengu_onyx_plover',
-    null,
-  )
-  return gb?.enabled === true
+  return true
 }
