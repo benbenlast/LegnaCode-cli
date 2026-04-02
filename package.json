@@ -9,7 +9,7 @@
   },
   "scripts": {
     "build": "bun run scripts/build.ts && python3 scripts/postbuild-fix.py",
-    "compile": "bun build --compile --define \"MACRO.VERSION='\\\"1.0.0\\\"'\" --define \"MACRO.BUILD_TIME='\\\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\\\"'\" --define \"MACRO.PACKAGE_URL='\\\"@legna-lnc/legnacode\\\"'\" --define \"MACRO.NATIVE_PACKAGE_URL='\\\"\\\"'\" --define \"MACRO.FEEDBACK_CHANNEL='\\\"https://github.com/legna-lnc/legnacode/issues\\\"'\" --define \"MACRO.ISSUES_EXPLAINER='\\\"report issues\\\"'\" --define \"MACRO.VERSION_CHANGELOG='\\\"\\\"'\" --outfile legna src/entrypoints/cli.tsx",
+    "compile": "bun run scripts/compile.ts",
     "dev": "bun --watch src/main.tsx",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/",
