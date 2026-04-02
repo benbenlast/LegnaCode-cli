@@ -50,7 +50,7 @@ const brief = {
   description: 'Toggle brief-only mode',
   isEnabled: () => {
     if (feature('KAIROS') || feature('KAIROS_BRIEF')) {
-      return getBriefConfig().enable_slash_command
+      return true
     }
     return false
   },

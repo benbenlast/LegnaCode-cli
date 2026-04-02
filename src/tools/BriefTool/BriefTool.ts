@@ -89,13 +89,7 @@ export function isBriefEntitled(): boolean {
   // Positive ternary — see docs/feature-gating.md. Negative early-return
   // would not eliminate the GB gate string from external builds.
   return feature('KAIROS') || feature('KAIROS_BRIEF')
-    ? getKairosActive() ||
-        isEnvTruthy(process.env.CLAUDE_CODE_BRIEF) ||
-        getFeatureValue_CACHED_WITH_REFRESH(
-          'tengu_kairos_brief',
-          false,
-          KAIROS_BRIEF_REFRESH_MS,
-        )
+    ? true
     : false
 }
 
