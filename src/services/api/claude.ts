@@ -113,6 +113,7 @@ import {
   APIError,
   APIUserAbortError,
 } from '@anthropic-ai/sdk/error'
+import { applyModelAdapter } from '../../utils/model/adapters/index.js'
 import {
   getAfkModeHeaderLatched,
   getCacheEditingHeaderLatched,
@@ -1696,7 +1697,7 @@ async function* queryModel(
 
     lastRequestBetas = betasParams
 
-    return {
+    const rawParams = {
       model: normalizeModelStringForAPI(options.model),
       messages: addCacheBreakpoints(
         messagesForAPI,
@@ -1726,6 +1727,9 @@ async function* queryModel(
       }),
       ...(speed !== undefined && { speed }),
     }
+
+    // Apply model-specific adapter transformations (MiMo, DeepSeek, etc.)
+    return applyModelAdapter(rawParams)
   }
 
   // Compute log scalars synchronously so the fire-and-forget .then() closure
