@@ -41,6 +41,14 @@ async function main(): Promise<void> {
     return;
   }
 
+  // Fast-path for `legna admin`: launch WebUI management panel
+  if (args[0] === 'admin') {
+    const port = args[1] ? parseInt(args[1], 10) : 3456;
+    const { startAdminServer } = await import('../server/admin.js');
+    await startAdminServer({ port });
+    return;
+  }
+
   // For all other paths, load the startup profiler
   const {
     profileCheckpoint

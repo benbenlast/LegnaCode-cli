@@ -1,15 +1,20 @@
 {
   "name": "@legna-lnc/legnacode",
-  "version": "1.0.9",
+  "version": "1.1.0",
   "description": "LegnaCode — legna.lnc's official CLI for coding assistance",
   "type": "module",
-  "main": "dist/main.js",
   "bin": {
-    "legna": "dist/main.js"
+    "legna": "npm/bin/legna"
   },
+  "files": [
+    "npm/",
+    "README.md"
+  ],
   "scripts": {
     "build": "bun run scripts/build.ts && python3 scripts/postbuild-fix.py",
     "compile": "bun run scripts/compile.ts",
+    "compile:all": "bun run scripts/compile-all.ts",
+    "publish:all": "bun run scripts/publish.ts",
     "dev": "bun --watch src/main.tsx",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/",
@@ -120,5 +125,11 @@
   "engines": {
     "bun": ">=1.2.0"
   },
-  "private": true
+  "optionalDependencies": {
+    "@legna-lnc/legnacode-darwin-arm64": "1.0.9",
+    "@legna-lnc/legnacode-darwin-x64": "1.0.9",
+    "@legna-lnc/legnacode-linux-x64": "1.0.9",
+    "@legna-lnc/legnacode-linux-arm64": "1.0.9",
+    "@legna-lnc/legnacode-win32-x64": "1.0.9"
+  }
 }

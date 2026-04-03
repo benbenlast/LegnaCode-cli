@@ -27,5 +27,13 @@ Thumbs.db
 *.log
 npm-debug.log*
 
+# npm platform packages (compiled binaries)
+.npm-packages/
+.compile-tmp/
+
 # Augment RAG index (generated)
 .augment-rag/
+
+# WebUI build output
+webui/dist/
+webui/node_modules/
