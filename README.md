@@ -1,5 +1,7 @@
 # LegnaCode CLI
 <img width="1256" height="416" alt="image" src="https://github.com/user-attachments/assets/5e4717e6-3404-4901-9f5c-1c6462fb1c1a" />
+<img width="1072" height="874" alt="image" src="https://github.com/user-attachments/assets/819c39e8-9db6-4d8d-b911-13600c525422" />
+
 LegnaCode 是一个基于 Anthropic Claude 的智能终端编程助手，让你直接在命令行中与 AI 协作完成软件工程任务——编辑文件、执行命令、搜索代码、管理 Git 工作流等。
 
 ---
