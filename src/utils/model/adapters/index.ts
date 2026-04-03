@@ -37,11 +37,10 @@ function getAdapters(): ModelAdapter[] {
   if (!_adapters) {
     // Import adapters synchronously — they're lightweight
     const { MiMoAdapter } = require('./mimo.js')
+    const { GLMAdapter } = require('./glm.js')
     _adapters = [
       MiMoAdapter,
-      // Add more adapters here:
-      // DeepSeekAdapter,
-      // QwenAdapter,
+      GLMAdapter,
     ]
   }
   return _adapters
