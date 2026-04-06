@@ -2,6 +2,16 @@
 
 All notable changes to LegnaCode CLI will be documented in this file.
 
+## [1.3.2] - 2026-04-07
+
+### Breaking Changes
+
+- **禁用 HISTORY_SNIP** — `bunfig.toml` feature flag 设为 false，编译时 DCE 移除所有 snip 相关代码（SnipTool、snipCompact、snipProjection、force-snip 命令、attachments nudge）。auto-compact 不受影响，上下文管理回归原有机制
+
+### Bug Fixes
+
+- **Windows Terminal 流式文本** — 不再对所有 Windows 禁用流式文本显示，改为仅在 legacy conhost 下禁用；Windows Terminal（检测 `WT_SESSION` 环境变量）恢复正常流式渲染
+
 ## [1.3.1] - 2026-04-06
 
 ### Bug Fixes
