@@ -125,6 +125,9 @@ export function isFullscreenEnvEnabled(): boolean {
     }
     return false
   }
+  // Windows Terminal: alt-screen eliminates the cursor-up viewport yank bug
+  // (microsoft/terminal#14774). WT supports DEC 1049 + DEC 2026.
+  if (process.env.WT_SESSION) return true
   return process.env.USER_TYPE === 'ant'
 }
 

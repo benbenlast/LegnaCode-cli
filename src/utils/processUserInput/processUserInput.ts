@@ -492,6 +492,24 @@ async function processUserInputBase(
     return addImageMetadataMessage(slashResult, imageMetadataTexts)
   }
 
+  // OML magic keywords — detect ultrawork/ralph/autopilot/ultrathink in prompt
+  // and inject orchestration instructions. Runs before slash command check so
+  // keywords in plain text are caught; slash commands (/ultrawork) are handled
+  // by the plugin skill system above.
+  if (
+    feature('OML_BUILTIN') &&
+    mode === 'prompt' &&
+    inputString !== null &&
+    !inputString.startsWith('/')
+  ) {
+    const { processMagicKeywords } = await import('../../plugins/bundled/oml/magicKeywords.js')
+    inputString = processMagicKeywords(inputString)
+    // Update normalizedInput if it was the string form
+    if (typeof normalizedInput === 'string') {
+      normalizedInput = inputString
+    }
+  }
+
   // For slash commands, attachments will be extracted within getMessagesForSlashCommand
   const shouldExtractAttachments =
     !skipAttachments &&

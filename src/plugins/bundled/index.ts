@@ -14,10 +14,15 @@
  * 2. Call registerBuiltinPlugin() with the plugin definition here
  */
 
+import { feature } from 'bun:bundle'
+import { registerBuiltinPlugin } from '../builtinPlugins.js'
+import { omlPluginDefinition } from './oml/definition.js'
+
 /**
  * Initialize built-in plugins. Called during CLI startup.
  */
 export function initBuiltinPlugins(): void {
-  // No built-in plugins registered yet — this is the scaffolding for
-  // migrating bundled skills that should be user-toggleable.
+  if (feature('OML_BUILTIN')) {
+    registerBuiltinPlugin(omlPluginDefinition)
+  }
 }

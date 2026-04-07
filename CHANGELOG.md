@@ -2,6 +2,28 @@
 
 All notable changes to LegnaCode CLI will be documented in this file.
 
+## [1.3.3] - 2026-04-07
+
+### New Features
+
+- **OML (Oh-My-LegnaCode) 智能编排层** — 内置 oh-my-claudecode 核心功能，开箱即用
+  - 5 个编排 skill：`/ultrawork`（并行执行）、`/ralph`（持久循环）、`/autopilot`（全自主）、`/ralplan`（先规划再执行）、`/plan-oml`（结构化规划）
+  - 19 个专业化 agent skill：`/oml:explore`、`/oml:planner`、`/oml:architect`、`/oml:executor`、`/oml:verifier` 等
+  - Magic Keywords 自动检测：prompt 中包含 ultrawork/ralph/autopilot/ultrathink 等关键词时自动注入编排指令（支持中日韩越多语言）
+  - 通过 `/plugin` UI 可启用/禁用（`oml@builtin`，默认启用）
+  - `OML_BUILTIN` feature flag 控制编译时 DCE
+
+### Bug Fixes
+
+- **Windows Terminal Fullscreen** — `WT_SESSION` 环境下自动启用 alt-screen 模式，彻底消除 cursor-up viewport yank bug（microsoft/terminal#14774）。覆盖 WSL-in-Windows-Terminal。`CLAUDE_CODE_NO_FLICKER=0` 可 opt-out
+
+### Architecture
+
+- `src/plugins/bundled/oml/` — OML plugin 模块（definition、skills、agents、magicKeywords）
+- `src/plugins/bundled/index.ts` — 注册 OML builtin plugin
+- `src/utils/processUserInput/processUserInput.ts` — magic keyword 检测集成点
+- `src/utils/fullscreen.ts` — Windows Terminal fullscreen 条件
+
 ## [1.3.2] - 2026-04-07
 
 ### Breaking Changes

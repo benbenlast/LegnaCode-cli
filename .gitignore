@@ -38,3 +38,6 @@ npm-debug.log*
 # WebUI build output
 webui/dist/
 webui/node_modules/
+
+# Oh-My-LegnaCode (upstream reference)
+omc/
