@@ -237,6 +237,66 @@ legna migrate --dry-run
 | `CLAUDE_CODE_USE_BEDROCK` | 使用 AWS Bedrock 后端 |
 | `CLAUDE_CODE_USE_VERTEX` | 使用 GCP Vertex 后端 |
 | `CLAUDE_CODE_SYNTAX_HIGHLIGHT` | 设为 `0` 禁用语法高亮 |
+| `MINIMAX_API_KEY` | MiniMax API 密钥（启用多模态工具） |
+| `MINIMAX_REGION` | MiniMax 区域：`global`（默认）或 `cn` |
+| `MINIMAX_BASE_URL` | 自定义 MiniMax API 地址（覆盖区域默认值） |
+
+---
+
+## MiniMax 多模态集成
+
+当使用 MiniMax 模型（`ANTHROPIC_BASE_URL` 指向 `api.minimax.io` 或 `api.minimaxi.com`）且配置了 `MINIMAX_API_KEY` 时，LegnaCode 自动注册 6 个多模态原生工具，AI 可以直接调用。
+
+### 配置
+
+```bash
+# 方式一：环境变量
+export MINIMAX_API_KEY="your-api-key"
+export MINIMAX_REGION="global"  # 或 "cn"
+
+# 方式二：交互式配置（持久化到 ~/.legna/minimax-credentials.json）
+legna
+> /auth-minimax your-api-key
+```
+
+API key 获取：[MiniMax 国际站](https://platform.minimax.io) 或 [MiniMax 国内站](https://platform.minimaxi.com)
+
+### 多模态工具
+
+| 工具 | 功能 | 示例 |
+|------|------|------|
+| `MiniMaxImageGenerate` | 文字生成图像 | "生成一张赛博朋克风格的城市夜景" |
+| `MiniMaxVideoGenerate` | 文字/图像生成视频 | "把这张图片做成一段 5 秒的动画" |
+| `MiniMaxSpeechSynthesize` | 文字转语音 | "把这段文字转成语音朗读" |
+| `MiniMaxMusicGenerate` | 文字生成音乐 | "生成一段轻快的钢琴背景音乐" |
+| `MiniMaxVisionDescribe` | 图像理解分析 | "描述这张图片的内容" |
+| `MiniMaxWebSearch` | 网页搜索 | "搜索最新的 TypeScript 5.x 特性" |
+
+工具仅在使用 MiniMax 模型时自动启用，不影响其他模型的工具列表。
+
+### 多模态工作流
+
+AI 可以自动编排多个工具完成复杂任务：
+
+```
+用户：帮我做一个项目宣传视频
+
+AI 自动编排：
+1. 分析项目 README，提取核心卖点
+2. MiniMaxImageGenerate → 生成关键帧图片
+3. MiniMaxVideoGenerate → 基于关键帧生成视频
+4. MiniMaxSpeechSynthesize → 生成旁白配音
+5. 返回所有生成资源的 URL
+```
+
+### Schema 导出
+
+MiniMax 工具的 schema 可以导出为 Anthropic 兼容格式，用于外部集成：
+
+```typescript
+import { exportMiniMaxToolSchemasJSON } from './src/tools/MiniMaxTools/schemaExport.js'
+console.log(exportMiniMaxToolSchemasJSON())
+```
 
 ---
 
