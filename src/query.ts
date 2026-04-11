@@ -460,7 +460,7 @@ async function* queryLoop(
 
     queryCheckpoint('query_autocompact_start')
     logForDebugging('[autocompact] Starting context compaction...')
-    yield createSystemMessage('Compacting conversation context...')
+    toolUseContext.setSpinnerMessage?.('Compacting context…')
     const { compactionResult, consecutiveFailures } = await deps.autocompact(
       messagesForQuery,
       toolUseContext,
@@ -1073,7 +1073,7 @@ async function* queryLoop(
       if (toolUseContext.abortController.signal.reason !== 'interrupt') {
         const abortReason = toolUseContext.abortController.signal.reason ?? 'unknown'
         logForDebugging(`[Interrupted] abort reason: ${abortReason}, phase: streaming`)
-        yield createSystemMessage(`Interrupted: ${abortReason}`)
+        toolUseContext.setSpinnerMessage?.(`Interrupted: ${abortReason}`)
         yield createUserInterruptionMessage({
           toolUse: false,
         })
@@ -1252,7 +1252,7 @@ async function* queryLoop(
 
         if (maxOutputTokensRecoveryCount < MAX_OUTPUT_TOKENS_RECOVERY_LIMIT) {
           logForDebugging(`[query] Output truncated, retrying (attempt ${maxOutputTokensRecoveryCount + 1}/${MAX_OUTPUT_TOKENS_RECOVERY_LIMIT})`)
-          yield createSystemMessage(`Output truncated, retrying (attempt ${maxOutputTokensRecoveryCount + 1}/${MAX_OUTPUT_TOKENS_RECOVERY_LIMIT})...`)
+          toolUseContext.setSpinnerMessage?.(`Output truncated, retrying (${maxOutputTokensRecoveryCount + 1}/${MAX_OUTPUT_TOKENS_RECOVERY_LIMIT})…`)
           const recoveryMessage = createUserMessage({
             content:
               `Output token limit hit. Resume directly — no apology, no recap of what you were doing. ` +
@@ -1554,7 +1554,7 @@ async function* queryLoop(
       if (toolUseContext.abortController.signal.reason !== 'interrupt') {
         const abortReason = toolUseContext.abortController.signal.reason ?? 'unknown'
         logForDebugging(`[Interrupted] abort reason: ${abortReason}, phase: tool_execution`)
-        yield createSystemMessage(`Interrupted during tool execution: ${abortReason}`)
+        toolUseContext.setSpinnerMessage?.(`Interrupted: ${abortReason}`)
         yield createUserInterruptionMessage({
           toolUse: true,
         })

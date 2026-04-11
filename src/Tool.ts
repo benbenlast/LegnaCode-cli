@@ -232,6 +232,8 @@ export type ToolUseContext = {
    *  Called by subagent streaming when a new API request starts. */
   pushApiMetricsEntry?: (ttftMs: number) => void
   setStreamMode?: (mode: SpinnerMode) => void
+  /** Set a temporary spinner message (replaces verb text). Pass null to clear. */
+  setSpinnerMessage?: (message: string | null) => void
   onCompactProgress?: (event: CompactProgressEvent) => void
   setSDKStatus?: (status: SDKStatus) => void
   openMessageSelector?: () => void

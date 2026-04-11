@@ -2495,6 +2495,7 @@ export function REPL({
         });
       } : undefined,
       setStreamMode,
+      setSpinnerMessage,
       onCompactProgress: event => {
         switch (event.type) {
           case 'hooks_start':
