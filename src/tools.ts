@@ -11,6 +11,15 @@ import { NotebookEditTool } from './tools/NotebookEditTool/NotebookEditTool.js'
 import { WebFetchTool } from './tools/WebFetchTool/WebFetchTool.js'
 import { TaskStopTool } from './tools/TaskStopTool/TaskStopTool.js'
 import { BriefTool } from './tools/BriefTool/BriefTool.js'
+import {
+  isMiniMaxAvailable,
+  MiniMaxImageGenerateTool,
+  MiniMaxVideoGenerateTool,
+  MiniMaxSpeechSynthesizeTool,
+  MiniMaxMusicGenerateTool,
+  MiniMaxVisionDescribeTool,
+  MiniMaxWebSearchTool,
+} from './tools/MiniMaxTools/index.js'
 // Dead code elimination: conditional import for ant-only tools
 /* eslint-disable custom-rules/no-process-env-top-level, @typescript-eslint/no-require-imports */
 const REPLTool =
@@ -247,6 +256,17 @@ export function getAllBaseTools(): Tools {
     // Include ToolSearchTool when tool search might be enabled (optimistic check)
     // The actual decision to defer tools happens at request time in claude.ts
     ...(isToolSearchEnabledOptimistic() ? [ToolSearchTool] : []),
+    // MiniMax multimodal tools — only available when MINIMAX_API_KEY is set
+    ...(isMiniMaxAvailable()
+      ? [
+          MiniMaxImageGenerateTool,
+          MiniMaxVideoGenerateTool,
+          MiniMaxSpeechSynthesizeTool,
+          MiniMaxMusicGenerateTool,
+          MiniMaxVisionDescribeTool,
+          MiniMaxWebSearchTool,
+        ]
+      : []),
   ]
 }
 

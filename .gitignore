@@ -44,3 +44,6 @@ omc/
 
 # Superpowers (upstream reference)
 superpowers/
+
+# Vendor references (upstream repos for analysis)
+vendor/

@@ -22,6 +22,7 @@ import {
   ERROR_MESSAGE_USER_ABORT,
   type RecompactionInfo,
 } from './compact.js'
+import { pruneToolOutput } from './toolOutputPruner.js'
 import { runPostCompactCleanup } from './postCompactCleanup.js'
 import { trySessionMemoryCompaction } from './sessionMemoryCompact.js'
 
@@ -310,8 +311,27 @@ export async function autoCompactIfNeeded(
   }
 
   try {
+    // Pre-prune large tool outputs before compaction to reduce context size.
+    // This trims oversized tool_result content blocks (file reads, grep output)
+    // while preserving head+tail for context.
+    const prunedMessages = messages.map(msg => {
+      if (msg.type !== 'user') return msg
+      const content = msg.message?.content
+      if (!Array.isArray(content)) return msg
+      let changed = false
+      const prunedContent = content.map((block: any) => {
+        if (block.type === 'tool_result' && typeof block.content === 'string' && block.content.length > 8000) {
+          changed = true
+          return { ...block, content: pruneToolOutput('tool_result', block.content) }
+        }
+        return block
+      })
+      if (!changed) return msg
+      return { ...msg, message: { ...msg.message, content: prunedContent } }
+    })
+
     const compactionResult = await compactConversation(
-      messages,
+      prunedMessages,
       toolUseContext,
       cacheSafeParams,
       true, // Suppress user questions for autocompact

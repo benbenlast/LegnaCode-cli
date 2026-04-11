@@ -2,6 +2,45 @@
 
 All notable changes to LegnaCode CLI will be documented in this file.
 
+## [1.4.0] - 2026-04-11
+
+### Features
+
+- **MiniMax 深度原生兼容** — 当使用 MiniMax 模型且 `MINIMAX_API_KEY` 配置时，自动注册 6 个多模态原生工具：
+  - `MiniMaxImageGenerate` — 图像生成（POST /v1/image_generation）
+  - `MiniMaxVideoGenerate` — 视频生成 + 异步轮询（POST /v1/video_generation）
+  - `MiniMaxSpeechSynthesize` — 文字转语音（POST /v1/t2a_v2）
+  - `MiniMaxMusicGenerate` — 音乐生成（POST /v1/music_generation）
+  - `MiniMaxVisionDescribe` — 图像理解 VLM（POST /v1/coding_plan/vlm）
+  - `MiniMaxWebSearch` — 网页搜索（POST /v1/web_search）
+- **MiniMax 认证命令** — `/auth-minimax` 命令配置 API key，持久化到 `~/.legna/minimax-credentials.json`
+- **MiniMax 工具 Schema 导出** — `schemaExport.ts` 支持导出 Anthropic 兼容格式的工具 schema
+- **MiniMax 多模态 Skill 包** — 5 个内置 skill（image/video/speech/music/pipeline），指导 AI 编排多模态工作流
+- **智能模型路由** — 基于 prompt 复杂度启发式路由到 fast/default/strong 模型层
+- **自主技能检测** — 检测重复工具调用模式，提示用户保存为可复用技能
+- **上下文压缩增强**：
+  - 工具输出预剪枝 — 大型 tool_result 在 compact 前自动裁剪（head + tail 保留）
+  - 预算压力注入 — context 使用超 80% 时在工具结果中注入提示，引导模型收尾
+- **RPC 子进程工具执行** — Unix Domain Socket RPC 服务端 + stub 生成器 + 代码执行运行器，AI 生成的脚本可通过 RPC 回调 LegnaCode 工具（Bash/Read/Write/Edit/Glob/Grep/WebFetch），多步操作压缩为一次推理
+- **Memory Provider 插件系统** — 抽象基类 + 注册表 + 默认 FileMemoryProvider，支持一个外部 provider 与内置 memory 并行运行，完整生命周期（initialize/prefetch/syncTurn/shutdown）+ 可选 hooks（onTurnStart/onSessionEnd/onPreCompress/onDelegation）
+- **跨会话记忆搜索** — `/recall` 命令搜索历史会话 JSONL 文件，关键词匹配 + 相关性排序
+- **Worker 线程池** — 大文件操作 / 批量搜索可 offload 到 worker 线程，避免主线程阻塞
+
+### Architecture
+
+- 新增 `src/tools/MiniMaxTools/` — 完整的 MiniMax 多模态工具目录（client、endpoints、6 个 buildTool 工具、条件注册、schema 导出）
+- 新增 `src/services/rpc/` — RPC 子进程工具执行（rpcServer.ts、stubGenerator.ts、codeExecutionRunner.ts）
+- 新增 `src/memdir/providers/` — Memory Provider 插件系统（MemoryProvider.ts 抽象基类、FileMemoryProvider.ts 默认实现、registry.ts 注册表）
+- 新增 `src/services/modelRouter.ts` — 任务复杂度估算 + 模型层路由
+- 新增 `src/services/skillAutoCreate.ts` — 工具调用模式检测器，接入 toolExecution.ts
+- 新增 `src/services/compact/toolOutputPruner.ts` — 工具输出预剪枝，接入 autoCompact.ts
+- 新增 `src/services/compact/budgetPressure.ts` — 上下文预算压力注入，接入 query.ts
+- 新增 `src/services/sessionSearch.ts` — 跨会话搜索引擎
+- 新增 `src/commands/recall/` — `/recall` 命令
+- 新增 `src/commands/auth/` — `/auth-minimax` 命令
+- 新增 `src/skills/builtin-minimax/` — 5 个 MiniMax 多模态 skill 文件
+- 新增 `src/utils/workerPool.ts` — Worker 线程池
+
 ## [1.3.7] - 2026-04-09
 
 ### Bug Fixes

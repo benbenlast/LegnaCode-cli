@@ -42,6 +42,9 @@ import {
   PROMPT_TOO_LONG_ERROR_MESSAGE,
   isPromptTooLongMessage,
 } from './services/api/errors.js'
+import { estimateComplexity, getModelTier, logRoutingDecision } from './services/modelRouter.js'
+import { getBudgetPressureMessage } from './services/compact/budgetPressure.js'
+import { skillPatternDetector } from './services/skillAutoCreate.js'
 import { logAntError, logForDebugging } from './utils/debug.js'
 import {
   createUserMessage,
@@ -578,6 +581,23 @@ async function* queryLoop(
         permissionMode === 'plan' &&
         doesMostRecentAssistantMessageExceed200k(messagesForQuery),
     })
+
+    // Smart model routing: log complexity estimate for diagnostics.
+    // Extract last user message text for routing heuristic.
+    const lastUserMsg = [...messagesForQuery].reverse().find(m => m.type === 'user')
+    if (lastUserMsg && 'content' in lastUserMsg.message) {
+      const text = typeof lastUserMsg.message.content === 'string'
+        ? lastUserMsg.message.content
+        : Array.isArray(lastUserMsg.message.content)
+          ? lastUserMsg.message.content.filter((b: any) => b.type === 'text').map((b: any) => b.text).join(' ')
+          : ''
+      if (text && turnCount === 1) {
+        const hint = estimateComplexity(text)
+        const tier = getModelTier(hint.complexity)
+        logRoutingDecision(text, hint)
+        logForDebugging(`[modelRouter] tier=${tier} currentModel=${currentModel}`)
+      }
+    }
 
     queryCheckpoint('query_setup_end')
 
@@ -1411,6 +1431,27 @@ async function* queryLoop(
       }
     }
     queryCheckpoint('query_tool_execution_end')
+
+    // Inject budget pressure into tool results when context is running low.
+    // This nudges the model to wrap up without hard-cutting the conversation.
+    if (toolResults.length > 0 && tracking) {
+      const lastAssistant = assistantMessages.at(-1)
+      const usedTokens = lastAssistant?.message?.usage?.input_tokens ?? 0
+      const maxTokens = toolUseContext.options.thinkingConfig?.contextWindow ?? 200_000
+      const pressureMsg = getBudgetPressureMessage(usedTokens, maxTokens)
+      if (pressureMsg) {
+        logForDebugging(`[budgetPressure] Injecting: ${pressureMsg}`)
+        // Append pressure to the last tool result's content
+        const lastResult = toolResults.at(-1)
+        if (lastResult?.type === 'user' && Array.isArray(lastResult.message.content)) {
+          const content = lastResult.message.content
+          const lastBlock = content.at(-1)
+          if (lastBlock && typeof lastBlock === 'object' && 'type' in lastBlock && lastBlock.type === 'tool_result' && typeof lastBlock.content === 'string') {
+            (lastBlock as any).content = lastBlock.content + '\n\n' + pressureMsg
+          }
+        }
+      }
+    }
 
     // Generate tool use summary after tool batch completes — passed to next recursive call
     let nextPendingToolUseSummary:
