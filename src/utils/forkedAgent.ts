@@ -541,6 +541,7 @@ export async function runForkedAgent({
   }
 
   // Run the query loop with isolated context (cache-safe params preserved)
+  logForDebugging(`[forkedAgent] Starting "${forkLabel}" (agentId=${agentId ?? 'none'})`)
   try {
     for await (const message of query({
       messages: initialMessages,

@@ -83,10 +83,11 @@ async function sendAuto(
   switch (env.terminal) {
     case 'Apple_Terminal': {
       const bellDisabled = await isAppleTerminalBellDisabled()
-      if (bellDisabled) {
+      if (!bellDisabled) {
         terminal.notifyBell()
         return 'terminal_bell'
       }
+      // Bell is disabled — no notification method available for Apple Terminal
       return 'no_method_available'
     }
     case 'iTerm.app':

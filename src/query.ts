@@ -403,12 +403,14 @@ async function* queryLoop(
     let snipTokensFreed = 0
     if (feature('HISTORY_SNIP')) {
       queryCheckpoint('query_snip_start')
+      logForDebugging('[snip] Checking if history snip needed...')
       const snipResult = snipModule!.snipCompactIfNeeded(messagesForQuery, {
         model: toolUseContext.options.mainLoopModel,
       })
       messagesForQuery = snipResult.messages
       snipTokensFreed = snipResult.tokensFreed
       if (snipResult.boundaryMessage) {
+        logForDebugging(`[snip] Freed ${snipTokensFreed} tokens`)
         yield snipResult.boundaryMessage
       }
       queryCheckpoint('query_snip_end')
@@ -416,6 +418,7 @@ async function* queryLoop(
 
     // Apply microcompact before autocompact
     queryCheckpoint('query_microcompact_start')
+    logForDebugging('[microcompact] Running microcompact...')
     const microcompactResult = await deps.microcompact(
       messagesForQuery,
       toolUseContext,
@@ -456,6 +459,8 @@ async function* queryLoop(
     )
 
     queryCheckpoint('query_autocompact_start')
+    logForDebugging('[autocompact] Starting context compaction...')
+    yield createSystemMessage('Compacting conversation context...')
     const { compactionResult, consecutiveFailures } = await deps.autocompact(
       messagesForQuery,
       toolUseContext,
@@ -1068,6 +1073,7 @@ async function* queryLoop(
       if (toolUseContext.abortController.signal.reason !== 'interrupt') {
         const abortReason = toolUseContext.abortController.signal.reason ?? 'unknown'
         logForDebugging(`[Interrupted] abort reason: ${abortReason}, phase: streaming`)
+        yield createSystemMessage(`Interrupted: ${abortReason}`)
         yield createUserInterruptionMessage({
           toolUse: false,
         })
@@ -1245,6 +1251,8 @@ async function* queryLoop(
         }
 
         if (maxOutputTokensRecoveryCount < MAX_OUTPUT_TOKENS_RECOVERY_LIMIT) {
+          logForDebugging(`[query] Output truncated, retrying (attempt ${maxOutputTokensRecoveryCount + 1}/${MAX_OUTPUT_TOKENS_RECOVERY_LIMIT})`)
+          yield createSystemMessage(`Output truncated, retrying (attempt ${maxOutputTokensRecoveryCount + 1}/${MAX_OUTPUT_TOKENS_RECOVERY_LIMIT})...`)
           const recoveryMessage = createUserMessage({
             content:
               `Output token limit hit. Resume directly — no apology, no recap of what you were doing. ` +
@@ -1546,6 +1554,7 @@ async function* queryLoop(
       if (toolUseContext.abortController.signal.reason !== 'interrupt') {
         const abortReason = toolUseContext.abortController.signal.reason ?? 'unknown'
         logForDebugging(`[Interrupted] abort reason: ${abortReason}, phase: tool_execution`)
+        yield createSystemMessage(`Interrupted during tool execution: ${abortReason}`)
         yield createUserInterruptionMessage({
           toolUse: true,
         })

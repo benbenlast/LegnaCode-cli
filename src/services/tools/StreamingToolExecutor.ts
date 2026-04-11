@@ -9,6 +9,7 @@ import { findToolByName, type Tools, type ToolUseContext } from '../../Tool.js'
 import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
 import type { AssistantMessage, Message } from '../../types/message.js'
 import { createChildAbortController } from '../../utils/abortController.js'
+import { logForDebugging } from '../../utils/debug.js'
 import { runToolUse } from './toolExecution.js'
 
 type MessageUpdate = {
@@ -264,6 +265,9 @@ export class StreamingToolExecutor {
    */
   private async executeTool(tool: TrackedTool): Promise<void> {
     tool.status = 'executing'
+    const queued = this.tools.filter(t => t.status === 'queued').length
+    const executing = this.tools.filter(t => t.status === 'executing').length
+    logForDebugging(`[toolExecutor] Running ${tool.block.name}${queued > 0 ? ` (${queued} queued, ${executing} running)` : ''}`)
     this.toolUseContext.setInProgressToolUseIDs(prev =>
       new Set(prev).add(tool.id),
     )
