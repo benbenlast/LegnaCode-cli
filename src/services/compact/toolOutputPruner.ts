@@ -5,7 +5,7 @@
  * to a summary + head/tail, preserving the most useful information.
  */
 
-import { logForDebugging } from '../utils/debug.js'
+import { logForDebugging } from '../../utils/debug.js'
 
 const MAX_TOOL_OUTPUT_CHARS = 8_000
 const HEAD_CHARS = 3_000

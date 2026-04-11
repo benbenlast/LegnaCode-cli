@@ -8,7 +8,7 @@
 import { readFile, writeFile, readdir, mkdir } from 'fs/promises'
 import { join } from 'path'
 import { MemoryProvider, type ToolSchema } from './MemoryProvider.js'
-import { getOriginalCwd } from '../../utils/cwd.js'
+import { getCwd } from '../../utils/cwd.js'
 import { logForDebugging } from '../../utils/debug.js'
 
 export class FileMemoryProvider extends MemoryProvider {
@@ -20,7 +20,7 @@ export class FileMemoryProvider extends MemoryProvider {
   }
 
   async initialize(sessionId: string): Promise<void> {
-    this.memoryDir = join(getOriginalCwd(), '.legna', 'memory')
+    this.memoryDir = join(getCwd(), '.legna', 'memory')
     await mkdir(this.memoryDir, { recursive: true })
     logForDebugging(`[FileMemoryProvider] Initialized for session ${sessionId} at ${this.memoryDir}`)
   }

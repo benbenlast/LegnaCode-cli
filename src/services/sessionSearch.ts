@@ -8,7 +8,7 @@
 import { readdir, readFile } from 'fs/promises'
 import { join } from 'path'
 import { logForDebugging } from '../utils/debug.js'
-import { getOriginalCwd } from '../utils/cwd.js'
+import { getCwd } from '../utils/cwd.js'
 
 interface SearchHit {
   sessionId: string
@@ -28,7 +28,7 @@ export async function searchSessions(
   const keywords = query.toLowerCase().split(/\s+/).filter(w => w.length > 2)
   if (keywords.length === 0) return []
 
-  const cwd = getOriginalCwd()
+  const cwd = getCwd()
   const sessionDirs = [
     join(cwd, '.legna', 'sessions'),
   ]
