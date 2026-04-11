@@ -2,6 +2,14 @@
 
 All notable changes to LegnaCode CLI will be documented in this file.
 
+## [1.4.4] - 2026-04-11
+
+### Improvements
+
+- **状态提示改为 spinner 行显示** — autocompact / output truncated / interrupted 等状态信息不再以系统消息插入对话，改为在 spinner 动画行临时显示，一闪而过不污染上下文
+- **ToolUseContext 新增 setSpinnerMessage** — 通用的 spinner 文本回调，query loop 可随时更新 spinner 状态
+- **LegnaCode vs Claude Code 对比文档** — 新增 [COMPARISON.md](./COMPARISON.md)，9 大类 60+ 项逐条对比
+
 ## [1.4.3] - 2026-04-11
 
 ### Features
