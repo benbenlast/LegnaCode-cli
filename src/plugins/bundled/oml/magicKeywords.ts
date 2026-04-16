@@ -117,6 +117,22 @@ const KEYWORDS: KeywordDef[] = [
 ]
 
 /**
+ * Detect if a prompt implies deep scope (architecture, migration, refactor).
+ * Returns a lightweight hint to append, or empty string.
+ */
+function compoundScopeHint(prompt: string): string {
+  const cleaned = stripCode(prompt).toLowerCase()
+  const deepSignals = [
+    'refactor', 'migrate', 'architecture', 'redesign', 'rewrite', 'overhaul',
+    '重构', '迁移', '架构', '重写', '重新设计',
+    'リファクタ', 'アーキテクチャ', '移行',
+  ]
+  const hits = deepSignals.filter(s => cleaned.includes(s)).length
+  if (hits === 0) return ''
+  return '\n\n[Compound hint: This looks like a significant change. Consider documenting key decisions and learnings for future reference.]'
+}
+
+/**
  * Process magic keywords in user prompt.
  * Returns the original prompt if no keywords detected, or the enhanced prompt.
  */
@@ -130,6 +146,9 @@ export function processMagicKeywords(prompt: string): string {
       break // only apply highest-priority match
     }
   }
+
+  // Compound engineering: append scope hint for deep changes (lightweight, ~15 tokens)
+  result += compoundScopeHint(result)
 
   return result
 }

@@ -6,7 +6,7 @@
  * Falls back to plain .md file search when DrawerStore is not initialized.
  */
 
-import { readFile, readdir, mkdir } from 'fs/promises'
+import { readFile, readdir, mkdir, writeFile as fsWriteFile } from 'fs/promises'
 import { join, basename } from 'path'
 import { existsSync } from 'fs'
 import { MemoryProvider, type ToolSchema } from './MemoryProvider.js'
@@ -15,6 +15,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import { DrawerStore } from '../vectorStore/drawerStore.js'
 import { LayeredStack } from '../vectorStore/layeredStack.js'
 import { extractExchangePairs, pairsToDrawers } from '../vectorStore/exchangeExtractor.js'
+import { detectRoom } from '../vectorStore/roomDetector.js'
 import { migrateMemoryFiles, extractIdentity } from '../vectorStore/migration.js'
 
 export class FileMemoryProvider extends MemoryProvider {
@@ -73,13 +74,21 @@ export class FileMemoryProvider extends MemoryProvider {
   }
 
   async prefetch(query: string): Promise<string> {
+    const parts: string[] = []
+
     // Budget-capped recall with L2→L1→L0 degradation (OpenViking strategy)
     if (this.store && this.stack) {
       const items = this.stack.recallWithBudget(query, this.projectSlug, 4000)
       if (items.length > 0) {
-        return this.stack.formatTieredRecall(items, 'Relevant Context')
+        parts.push(this.stack.formatTieredRecall(items, 'Relevant Context'))
       }
     }
+
+    // Compound engineering: search docs/solutions/ for past learnings
+    const solutionHits = await this.searchSolutions(query)
+    if (solutionHits) parts.push(solutionHits)
+
+    if (parts.length > 0) return parts.join('\n\n')
 
     // Fallback: plain keyword search
     const keywords = query.toLowerCase().split(/\s+/).filter(w => w.length > 2)
@@ -96,6 +105,43 @@ export class FileMemoryProvider extends MemoryProvider {
       if (matches.length > 0) return `Relevant memory:\n${matches.slice(0, 5).join('\n---\n')}`
     } catch {}
     return ''
+  }
+
+  /**
+   * Compound engineering: search docs/solutions/ for past learnings.
+   * Only active when docs/solutions/ exists and has >= 5 files.
+   */
+  private async searchSolutions(query: string): Promise<string | null> {
+    const solutionsDir = join(getCwd(), 'docs', 'solutions')
+    if (!existsSync(solutionsDir)) return null
+
+    try {
+      const files = (await readdir(solutionsDir)).filter(f => f.endsWith('.md'))
+      if (files.length < 1) return null
+
+      const keywords = query.toLowerCase().split(/\s+/).filter(w => w.length > 2)
+      if (keywords.length === 0) return null
+
+      const hits: Array<{ file: string; score: number; preview: string }> = []
+      for (const file of files.slice(-50)) { // Only scan last 50 files
+        const content = await readFile(join(solutionsDir, file), 'utf-8')
+        const lower = content.toLowerCase()
+        const score = keywords.filter(kw => lower.includes(kw)).length
+        if (score >= 2) {
+          // Extract problem line from frontmatter
+          const problemMatch = content.match(/^problem:\s*"(.+?)"/m)
+          const preview = problemMatch?.[1] || content.slice(0, 150)
+          hits.push({ file, score, preview })
+        }
+      }
+
+      if (hits.length === 0) return null
+      hits.sort((a, b) => b.score - a.score)
+      const lines = hits.slice(0, 3).map(h => `- [${h.file}] ${h.preview}`)
+      return `[Past Learnings]\n${lines.join('\n')}`
+    } catch {
+      return null
+    }
   }
 
   async syncTurn(userContent: string, assistantContent: string): Promise<void> {
@@ -143,6 +189,9 @@ export class FileMemoryProvider extends MemoryProvider {
       if (drawers.length > 0) {
         this.store.upsertMany(drawers, 'precompress')
         logForDebugging(`[FileMemoryProvider] onPreCompress: saved ${drawers.length} exchange pairs to DrawerStore`)
+
+        // Compound engineering: write high-value pairs to docs/solutions/ (opt-in via mkdir)
+        void this.compoundExtract(pairs, drawers)
       }
 
       return drawers.length > 0
@@ -151,6 +200,53 @@ export class FileMemoryProvider extends MemoryProvider {
     } catch (err) {
       logForDebugging(`[FileMemoryProvider] onPreCompress error: ${err}`)
       return ''
+    }
+  }
+
+  /**
+   * Compound engineering: write high-value exchange pairs to docs/solutions/.
+   * Only active when docs/solutions/ exists (user opt-in via mkdir).
+   */
+  private async compoundExtract(
+    pairs: Array<{ user: string; assistant: string; score: number; markers: string[] }>,
+    drawers: Array<{ content: string; room: string }>,
+  ): Promise<void> {
+    const solutionsDir = join(getCwd(), 'docs', 'solutions')
+    if (!existsSync(solutionsDir)) return
+
+    const highValue = pairs.filter(p => p.score >= 3)
+    if (highValue.length === 0) return
+
+    for (const pair of highValue) {
+      const slug = pair.user.slice(0, 40).replace(/[^a-zA-Z0-9\u4e00-\u9fff]+/g, '-').replace(/-+$/, '').toLowerCase()
+      const room = detectRoom(`${pair.user} ${pair.assistant}`)
+      const tags = pair.markers.join(', ')
+      const now = new Date().toISOString().split('T')[0]
+
+      const content = `---
+problem: "${pair.user.slice(0, 200).replace(/"/g, '\\"')}"
+solution: "${pair.assistant.slice(0, 200).replace(/"/g, '\\"')}"
+category: ${room}
+tags: [${tags}]
+confidence: ${Math.min(1.0, 0.5 + pair.score * 0.1).toFixed(1)}
+created: ${now}
+---
+
+## Problem
+
+${pair.user.slice(0, 500)}
+
+## Solution
+
+${pair.assistant.slice(0, 800)}
+`
+      const filePath = join(solutionsDir, `${now}-${slug || 'solution'}.md`)
+      try {
+        await fsWriteFile(filePath, content, 'utf-8')
+        logForDebugging(`[compound] Wrote solution: ${filePath}`)
+      } catch (err) {
+        logForDebugging(`[compound] Failed to write solution: ${err}`)
+      }
     }
   }
 }
