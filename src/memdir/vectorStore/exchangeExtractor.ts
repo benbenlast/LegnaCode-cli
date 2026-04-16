@@ -28,9 +28,15 @@ const MARKER_PATTERNS: Record<string, RegExp[]> = {
 const MIN_SCORE_THRESHOLD = 2
 const MIN_CONTENT_LENGTH = 50
 
+/** Strip <private>...</private> tagged content before memory extraction. */
+function stripPrivate(text: string): string {
+  return text.replace(/<private>[\s\S]*?<\/private>/gi, '[REDACTED]')
+}
+
 /**
  * Extract exchange pairs from a conversation message array.
  * Messages should alternate user/assistant.
+ * Content inside <private>...</private> tags is redacted before extraction.
  */
 export function extractExchangePairs(
   messages: Array<{ type: string; content: string }>,
@@ -42,7 +48,9 @@ export function extractExchangePairs(
     const next = messages[i + 1]!
 
     if (msg.type === 'user' && next.type === 'assistant') {
-      const combined = `${msg.content}\n${next.content}`
+      const userText = stripPrivate(msg.content)
+      const assistantText = stripPrivate(next.content)
+      const combined = `${userText}\n${assistantText}`
       if (combined.length < MIN_CONTENT_LENGTH) continue
 
       const markers: string[] = []
@@ -56,8 +64,8 @@ export function extractExchangePairs(
       }
 
       pairs.push({
-        user: msg.content,
-        assistant: next.content,
+        user: userText,
+        assistant: assistantText,
         score: markers.length,
         markers,
       })

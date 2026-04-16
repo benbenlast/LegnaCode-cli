@@ -31,6 +31,14 @@ export interface Drawer {
   contentL1?: string
   /** Pre-computed token cost of full content */
   tokenCost?: number
+  /** Token cost when this memory was first discovered */
+  discoveryTokens?: number
+  /** Accumulated read tokens (incremented each time recalled) */
+  readTokens?: number
+  /** How many times this drawer was recalled by search */
+  relevanceCount?: number
+  /** Content hash for deduplication */
+  contentHash?: string
 }
 
 /** Metadata filter for narrowing search scope. */

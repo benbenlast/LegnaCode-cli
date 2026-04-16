@@ -4,6 +4,23 @@
 
 All notable changes to LegnaCode CLI will be documented in this file.
 
+## [1.4.7] - 2026-04-13
+
+### Features
+
+- **claude-mem memory intelligence fusion** — Ported 5 lightweight techniques from claude-mem's persistent memory system into DrawerStore, zero new dependencies:
+  - **Content-hash deduplication** — `sha256(wing + room + content)` with 30-second window prevents duplicate observations during rapid compaction cycles
+  - **Token economics tracking** — Each drawer records `discoveryTokens` (cost to create) and `readTokens` (accumulated recall cost) for memory ROI analysis
+  - **Relevance feedback** — `relevanceCount` incremented on each search hit; frequently recalled memories get up to +100% importance boost via `importance * (1 + 0.1 * min(count, 10))`
+  - **90-day time decay** — `max(0.3, 1.0 - age_days / 90)` applied to both search similarity and importance ranking. Old memories fade but never fully disappear
+  - **Privacy tag filtering** — `<private>...</private>` content stripped to `[REDACTED]` before memory extraction. Zero config, just wrap sensitive text in tags
+
+### Architecture
+
+- Modified `src/memdir/vectorStore/types.ts` — Drawer gains `discoveryTokens`, `readTokens`, `relevanceCount`, `contentHash` fields
+- Modified `src/memdir/vectorStore/drawerStore.ts` — Schema migration (4 new columns), content-hash dedup in upsert, relevance feedback in search, time decay in search + topByImportance
+- Modified `src/memdir/vectorStore/exchangeExtractor.ts` — `stripPrivate()` applied before pair extraction
+
 ## [1.4.6] - 2026-04-13
 
 ### Bug Fixes

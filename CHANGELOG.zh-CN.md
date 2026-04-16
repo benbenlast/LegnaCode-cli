@@ -2,6 +2,17 @@
 
 All notable changes to LegnaCode CLI will be documented in this file.
 
+## [1.4.7] - 2026-04-13
+
+### Features
+
+- **claude-mem 记忆智能融合** — 从 claude-mem 持久记忆系统移植 5 项轻量技术到 DrawerStore，零新依赖：
+  - **Content-hash 去重** — `sha256(wing + room + content)` + 30 秒窗口，防止快速 compaction 时重复提取
+  - **Token 经济学追踪** — 每个 drawer 记录 `discoveryTokens`（创建成本）和 `readTokens`（累计召回成本）
+  - **使用反馈** — `relevanceCount` 每次搜索命中递增；频繁召回的记忆权重最多提升 100%
+  - **90 天时间衰减** — `max(0.3, 1.0 - age_days / 90)` 应用于搜索相似度和重要性排序，旧记忆渐隐但不消失
+  - **隐私标签过滤** — `<private>...</private>` 内容在记忆提取前替换为 `[REDACTED]`，零配置
+
 ## [1.4.6] - 2026-04-13
 
 ### Bug Fixes
