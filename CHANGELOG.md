@@ -4,7 +4,7 @@
 
 All notable changes to LegnaCode CLI will be documented in this file.
 
-## [1.4.7] - 2026-04-13
+## [1.4.7] - 2026-04-16
 
 ### Features
 
@@ -21,7 +21,7 @@ All notable changes to LegnaCode CLI will be documented in this file.
 - Modified `src/memdir/vectorStore/drawerStore.ts` — Schema migration (4 new columns), content-hash dedup in upsert, relevance feedback in search, time decay in search + topByImportance
 - Modified `src/memdir/vectorStore/exchangeExtractor.ts` — `stripPrivate()` applied before pair extraction
 
-## [1.4.6] - 2026-04-13
+## [1.4.6] - 2026-04-16
 
 ### Bug Fixes
 

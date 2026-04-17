@@ -2,7 +2,7 @@
 
 All notable changes to LegnaCode CLI will be documented in this file.
 
-## [1.4.7] - 2026-04-13
+## [1.4.7] - 2026-04-16
 
 ### Features
 
@@ -13,7 +13,7 @@ All notable changes to LegnaCode CLI will be documented in this file.
   - **90 天时间衰减** — `max(0.3, 1.0 - age_days / 90)` 应用于搜索相似度和重要性排序，旧记忆渐隐但不消失
   - **隐私标签过滤** — `<private>...</private>` 内容在记忆提取前替换为 `[REDACTED]`，零配置
 
-## [1.4.6] - 2026-04-13
+## [1.4.6] - 2026-04-16
 
 ### Bug Fixes
 
