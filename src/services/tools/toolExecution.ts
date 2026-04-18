@@ -5,6 +5,7 @@ import type {
   ToolUseBlock,
 } from '@anthropic-ai/sdk/resources/index.mjs'
 import { skillPatternDetector } from '../skillAutoCreate.js'
+import { checkToolLoop } from './toolIntelligence.js'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
@@ -342,6 +343,17 @@ export async function* runToolUse(
   toolUseContext: ToolUseContext,
 ): AsyncGenerator<MessageUpdateLazy, void> {
   const toolName = toolUse.name
+  // AtomCode fusion: check for tool call loops (same tool + same args 3+ times)
+  const loopMsg = checkToolLoop(toolName, (toolUse.input ?? {}) as Record<string, unknown>)
+  if (loopMsg) {
+    yield () => ({
+      type: 'tool_result' as const,
+      content: [{ type: 'text' as const, text: loopMsg }],
+      tool_use_id: toolUse.id,
+      is_error: true,
+    })
+    return
+  }
   // Track tool call for skill auto-creation pattern detection
   skillPatternDetector.record(toolName)
   // First try to find in the available tools (what the model sees)

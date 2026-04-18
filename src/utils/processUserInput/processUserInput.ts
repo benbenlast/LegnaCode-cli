@@ -504,6 +504,9 @@ async function processUserInputBase(
   ) {
     const { processMagicKeywords } = await import('../../plugins/bundled/oml/magicKeywords.js')
     inputString = processMagicKeywords(inputString)
+    // AtomCode fusion: reset tool intelligence tracking on each new user message
+    const { resetToolIntelligence } = await import('../../services/tools/toolIntelligence.js')
+    resetToolIntelligence()
     // Update normalizedInput if it was the string form
     if (typeof normalizedInput === 'string') {
       normalizedInput = inputString

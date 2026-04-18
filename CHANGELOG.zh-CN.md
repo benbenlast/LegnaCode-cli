@@ -2,6 +2,17 @@
 
 All notable changes to LegnaCode CLI will be documented in this file.
 
+## [1.4.8] - 2026-04-17
+
+### Features
+
+- **AtomCode 智能融合** — 从 AtomCode（Rust 实现的 Claude Code 替代品）移植 4 项轻量 Agent 智能技术，零新依赖：
+  - **Pangu CJK 间距** — Markdown 渲染时自动在中日韩字符与 ASCII 字母/数字之间插入空格，仅渲染时生效
+  - **负面反馈检测** — 检测用户短消息中的挫败信号（"still broken"/"错了"/"まだ壊れ"），注入策略转换提示，多语言（EN/ZH/JA）
+  - **工具调用循环检测** — 同组合 3+ 次 → 阻断，每次用户消息重置
+  - **错误文件预注入** — bash 失败时从 stderr 提取文件路径，自动读取前 30 行注入结果
+  - **首次读取强制全文** — 第一次读某文件时强制全文，防止分段读取
+
 ## [1.4.7] - 2026-04-16
 
 ### Features

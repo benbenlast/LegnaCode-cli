@@ -133,6 +133,24 @@ function compoundScopeHint(prompt: string): string {
 }
 
 /**
+ * Detect negative feedback / user frustration in short messages.
+ * Returns a lightweight strategy-shift hint, or empty string.
+ * Ported from AtomCode's negative feedback detection.
+ */
+function frustrationHint(prompt: string): string {
+  const cleaned = stripCode(prompt).trim()
+  // Only trigger on short messages (likely reactive frustration, not detailed instructions)
+  if (cleaned.length > 120) return ''
+  const patterns = [
+    /\b(wrong|still broken|doesn't work|not working|failed again|try again|same error|same bug|still fails)\b/i,
+    /(?:改错|不对|错了|还是不行|又错|没用|不好使|搞坏了|又坏了|还是报错)/,
+    /(?:違う|まだ壊れ|動かない|また失敗|直ってない)/,
+  ]
+  if (!patterns.some(p => p.test(cleaned))) return ''
+  return '\n\n[The user seems frustrated with repeated failures. Try a fundamentally different approach instead of repeating the same strategy. Re-read the relevant code, question your assumptions, and consider an alternative solution path.]'
+}
+
+/**
  * Process magic keywords in user prompt.
  * Returns the original prompt if no keywords detected, or the enhanced prompt.
  */
@@ -149,6 +167,9 @@ export function processMagicKeywords(prompt: string): string {
 
   // Compound engineering: append scope hint for deep changes (lightweight, ~15 tokens)
   result += compoundScopeHint(result)
+
+  // AtomCode: append frustration hint when user seems stuck (~25 tokens)
+  result += frustrationHint(result)
 
   return result
 }

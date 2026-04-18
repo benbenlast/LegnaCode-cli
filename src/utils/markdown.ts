@@ -9,6 +9,7 @@ import type { CliHighlight } from './cliHighlight.js'
 import { logForDebugging } from './debug.js'
 import { createHyperlink } from './hyperlink.js'
 import { stripPromptXMLTags } from './messages.js'
+import { panguSpacing } from './pangu.js'
 import type { ThemeName } from './theme.js'
 
 // Use \n unconditionally — os.EOL is \r\n on Windows, and the extra \r
@@ -201,7 +202,7 @@ export function formatToken(
       if (parent?.type === 'list_item') {
         return `${orderedListNumber === null ? '-' : getListNumber(listDepth, orderedListNumber) + '.'} ${token.tokens ? token.tokens.map(_ => formatToken(_, theme, listDepth, orderedListNumber, token, highlight)).join('') : linkifyIssueReferences(token.text)}${EOL}`
       }
-      return linkifyIssueReferences(token.text)
+      return linkifyIssueReferences(panguSpacing(token.text))
     case 'table': {
       const tableToken = token as Tokens.Table
 

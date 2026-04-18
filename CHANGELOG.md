@@ -4,6 +4,17 @@
 
 All notable changes to LegnaCode CLI will be documented in this file.
 
+## [1.4.8] - 2026-04-17
+
+### Features
+
+- **AtomCode intelligence fusion** — Ported 4 lightweight agent intelligence techniques from AtomCode (Rust-based Claude Code alternative), zero new dependencies:
+  - **Pangu CJK spacing** — Auto-inserts spaces between CJK characters and ASCII letters/numbers in Markdown rendering. Render-time only, never modifies source content.
+  - **Negative feedback detection** — Detects user frustration in short messages ("still broken", "错了", "まだ壊れ") and injects a strategy-shift hint (~25 tokens). Multilingual (EN/ZH/JA).
+  - **Tool call loop detection** — Tracks last 15 tool calls by `(toolName, argsHash)`. Same combination 3+ times → blocks with "try a different approach". Resets on each user message.
+  - **Error file pre-injection** — When bash commands fail, extracts file paths from stderr, auto-reads first 30 lines of up to 3 files into tool result.
+  - **First-read full file** — First time reading any file, ignores AI-requested offset/limit and forces full read. Prevents 4-7 fragmented read cycles.
+
 ## [1.4.7] - 2026-04-16
 
 ### Features
