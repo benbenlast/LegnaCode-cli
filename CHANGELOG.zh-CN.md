@@ -2,6 +2,22 @@
 
 All notable changes to LegnaCode CLI will be documented in this file.
 
+## [1.5.0] - 2026-04-19
+
+### Bug Fixes
+
+- **修复 REPL 启动死锁** — `/undo` 命令通过静态 `import` 注册到 `commands.ts`，产生循环依赖（`commands.ts` → `undo.ts` → `commands.ts`），导致 Bun 模块加载器死锁，启动后无任何输出。已移除静态导入。`/undo` 功能仍通过 `undoTracker.ts` 接入 Edit/Write 工具，但不再注册为斜杠命令。
+
+### Features（承自 1.4.8/1.4.9）
+
+- **AtomCode 智能融合** — Pangu CJK 间距、负面反馈检测、工具调用循环检测、错误文件预注入、首次全文读取
+- **OpenAI 兼容桥接器** — Anthropic ↔ OpenAI 格式翻译，支持 DeepSeek/Qwen/GLM/Ollama/vLLM/LM Studio
+- **代码图谱** — 正则符号索引 + 文件依赖图（TS/JS/Python/Go/Rust）
+- **并行文件编辑** — 每文件一个子代理 + 兄弟文件骨架
+- **工作流引擎** — 结构化 markdown 步骤执行，支持检查条件和依赖
+- **跨会话知识持久化** — 会话结束自动写 `.legna/knowledge.md`
+- **Baseline 构建** — 无 AVX 二进制，支持老款 x64 CPU
+
 ## [1.4.9] - 2026-04-17
 
 ### Features

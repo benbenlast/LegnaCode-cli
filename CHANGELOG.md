@@ -4,6 +4,22 @@
 
 All notable changes to LegnaCode CLI will be documented in this file.
 
+## [1.5.0] - 2026-04-19
+
+### Bug Fixes
+
+- **Fix REPL startup deadlock** — The `/undo` command was registered via static `import` in `commands.ts`, creating a circular dependency (`commands.ts` → `undo.ts` → `commands.ts`) that caused Bun's module loader to deadlock. The REPL would hang with no output on launch. Fixed by removing the static import entirely. The `/undo` feature remains available via `src/services/undoTracker.ts` (wired into Edit/Write tools) but is no longer registered as a slash command to avoid the circular dependency.
+
+### Features (carried from 1.4.8/1.4.9)
+
+- **AtomCode intelligence fusion** — Pangu CJK spacing, negative feedback detection, tool call loop detection, error file pre-injection, first-read full file
+- **OpenAI-compatible bridge adapter** — Anthropic ↔ OpenAI format translation for DeepSeek/Qwen/GLM/Ollama/vLLM/LM Studio
+- **Code Graph** — Regex-based symbol index + file dependency graph (TS/JS/Python/Go/Rust)
+- **Parallel File Edit** — One sub-agent per file with sibling skeletons
+- **Workflow Engine** — Structured markdown step execution with checks and dependencies
+- **Cross-session knowledge** — Auto-writes `.legna/knowledge.md` on session end
+- **Baseline builds** — No-AVX binaries for older x64 CPUs (darwin-x64-baseline, linux-x64-baseline)
+
 ## [1.4.9] - 2026-04-17
 
 ### Features

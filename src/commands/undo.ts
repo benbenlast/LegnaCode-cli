@@ -3,7 +3,6 @@
  * Ported from AtomCode's undo support.
  */
 
-import type { Command } from '../commands.js'
 import type { LocalCommandCall } from '../types/command.js'
 
 const call: LocalCommandCall = async (_args, _context) => {
@@ -21,8 +20,8 @@ const call: LocalCommandCall = async (_args, _context) => {
   }
 }
 
-const undo: Command = {
-  type: 'local',
+const undo = {
+  type: 'local' as const,
   call,
   name: 'undo',
   description: 'Undo the last file edit',
