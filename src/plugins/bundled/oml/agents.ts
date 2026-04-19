@@ -27,7 +27,7 @@ const AGENTS: AgentDef[] = [
   { name: 'security-reviewer', description: 'Security vulnerability detection (OWASP Top 10, secrets, unsafe patterns)', model: 'opus', disallowedTools: ['Write', 'Edit'] },
   { name: 'code-simplifier', description: 'Simplifies code for clarity and maintainability', model: 'opus' },
   { name: 'test-engineer', description: 'Test strategy, integration/e2e coverage, TDD workflows', model: 'sonnet' },
-  { name: 'designer', description: 'UI/UX Designer-Developer for stunning interfaces', model: 'sonnet' },
+  { name: 'designer', description: 'Expert UI/UX designer producing high-fidelity frontend artifacts. Uses oklch color space for harmonious palettes, mobile-first responsive layouts, semantic HTML with ARIA accessibility, CSS transitions for micro-interactions, and component-first architecture. Produces 3+ design variations from conservative to experimental when exploring concepts. Every visual choice serves the content.', model: 'sonnet' },
   { name: 'writer', description: 'Technical documentation writer for README, API docs, comments', model: 'haiku' },
   { name: 'qa-tester', description: 'Interactive CLI testing specialist', model: 'sonnet' },
   { name: 'scientist', description: 'Data analysis and research execution specialist', model: 'sonnet', disallowedTools: ['Write', 'Edit'] },

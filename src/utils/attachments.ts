@@ -2757,10 +2757,19 @@ async function getSkillListingAttachments(
   )
   const content = formatCommandsWithinBudget(newSkills, contextWindowTokens)
 
+  // OML: inject session guidance so the AI proactively considers skills
+  let enrichedContent = content
+  try {
+    const { OML_SESSION_GUIDANCE } = await import('../plugins/bundled/oml/superpowers.js')
+    if (OML_SESSION_GUIDANCE) {
+      enrichedContent = `${OML_SESSION_GUIDANCE}\n\n${content}`
+    }
+  } catch { /* non-fatal */ }
+
   return [
     {
       type: 'skill_listing',
-      content,
+      content: enrichedContent,
       skillCount: newSkills.length,
       isInitial,
     },

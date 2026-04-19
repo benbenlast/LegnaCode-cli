@@ -4,6 +4,18 @@
 
 All notable changes to LegnaCode CLI will be documented in this file.
 
+## [1.5.1] - 2026-04-19
+
+### Features
+
+- **Proactive skill invocation** — Wired `OML_SESSION_GUIDANCE` (the "1% rule") into the `skill_listing` attachment. The AI now proactively considers available skills before every response, instead of only responding to explicit `/slash` commands.
+- **Frontend/design auto-guidelines** — New `designPrompt.ts` detects frontend intent (UI, prototype, design exploration) from user input and transparently injects layered design guidelines (oklch colors, responsive layout, animation best practices, design exploration methodology). Zero user action required.
+- **Enhanced designer agent** — `/oml:designer` now carries a full design methodology prompt (oklch palettes, mobile-first, ARIA accessibility, 3+ variation exploration) instead of a one-line description.
+
+### Bug Fixes
+
+- **Skills were never proactively used** — `OML_SESSION_GUIDANCE` was defined in `superpowers.ts` but never imported or injected anywhere. Now wired into the skill listing attachment.
+
 ## [1.5.0] - 2026-04-19
 
 ### Bug Fixes

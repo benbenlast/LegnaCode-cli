@@ -2,6 +2,18 @@
 
 All notable changes to LegnaCode CLI will be documented in this file.
 
+## [1.5.1] - 2026-04-19
+
+### Features
+
+- **Skill 主动调用** — 将 `OML_SESSION_GUIDANCE`（"1% 规则"）接入 `skill_listing` 附件。AI 现在每次响应前都会主动检查是否有适用的 skill，而不是只在用户手动输入 `/slash` 命令时才触发。
+- **前端/设计指令自动注入** — 新增 `designPrompt.ts`，检测用户输入中的前端意图（UI、原型、设计探索），透明注入分层设计指导（oklch 配色、响应式布局、动画最佳实践、设计探索方法论）。用户无需任何操作。
+- **增强 designer agent** — `/oml:designer` 现在携带完整的设计方法论提示词，而非一句话描述。
+
+### Bug Fixes
+
+- **Skills 从未被主动使用** — `OML_SESSION_GUIDANCE` 在 `superpowers.ts` 中定义但从未被导入或注入。现已接入 skill listing 附件。
+
 ## [1.5.0] - 2026-04-19
 
 ### Bug Fixes

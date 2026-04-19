@@ -171,5 +171,15 @@ export function processMagicKeywords(prompt: string): string {
   // AtomCode: append frustration hint when user seems stuck (~25 tokens)
   result += frustrationHint(result)
 
+  // Design prompt: inject frontend/design guidelines when intent detected
+  try {
+    // Use require() to stay synchronous — this module is lightweight
+    const { detectFrontendIntent, getDesignPrompt } = require('./designPrompt.js')
+    const intent = detectFrontendIntent(stripCode(result))
+    if (intent !== 'none') {
+      result = `<design-guidelines>\n${getDesignPrompt(intent)}\n</design-guidelines>\n\n${result}`
+    }
+  } catch { /* non-fatal */ }
+
   return result
 }

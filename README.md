@@ -4,7 +4,7 @@
 
 **An AI-powered terminal programming assistant, supercharged.**
 
-[![version](https://img.shields.io/badge/version-1.5.0-blue)](./CHANGELOG.md)
+[![version](https://img.shields.io/badge/version-1.5.1-blue)](./CHANGELOG.md)
 [![platforms](https://img.shields.io/badge/platforms-macOS%20%7C%20Linux%20%7C%20Windows-brightgreen)](#platform-support)
 [![license](https://img.shields.io/badge/license-MIT-yellow)](./LICENSE)
 [![Claude Code](https://img.shields.io/badge/based%20on-Claude%20Code-blueviolet)](https://github.com/anthropics/claude-code)
@@ -33,6 +33,7 @@ LegnaCode is built on top of [Claude Code CLI](https://github.com/anthropics/cla
 
 | Version | Summary |
 |---------|---------|
+| **1.5.1** | Proactive skill invocation (OML 1% rule); auto-inject frontend/design guidelines; enhanced designer agent |
 | **1.5.0** | Fix REPL startup deadlock; remove /undo static import; all AtomCode features fully wired |
 | **1.4.9** | Baseline (no-AVX) builds for older x64 CPUs (darwin-x64-baseline, linux-x64-baseline) |
 | **1.4.8** | AtomCode fusion (Pangu CJK spacing, frustration detection, loop guard, error file injection, first-read full) |
