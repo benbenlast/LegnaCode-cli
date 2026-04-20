@@ -4,6 +4,28 @@
 
 All notable changes to LegnaCode CLI will be documented in this file.
 
+## [1.5.2] - 2026-04-20
+
+### Performance
+
+- **Async CodeGraph** — `build()` and `walkDir()` converted from sync to async, yielding the event loop every 50 files. Added `maxDepth=10` depth limit and `visitedInodes` symlink loop protection. `save()` now uses async `writeFile`.
+- **undoTracker size guard** — Added 1MB file size limit; files exceeding it skip undo snapshot recording (prevents OOM). `readFileSync` → async `readFile`.
+- **Async error file pre-injection** — `extractErrorFiles` converted from `existsSync`+`readFileSync` to async `access`+`readFile`.
+- **stripCode dedup** — `magicKeywords.ts` reduced `stripCode()` from 3-4 calls to 1, passing the result to all downstream functions.
+- **FileMemoryProvider TTL cache** — `searchSolutions` and fallback file search now use 60s TTL cache, avoiding repeated disk reads on every prefetch.
+- **OML_SESSION_GUIDANCE cache** — `attachments.ts` dynamic import cached at module level after first load.
+- **frustrationHint patterns hoisted** — Regex array moved from function body to module-level constant.
+
+### i18n
+
+- **Compacting status messages localized** — "Compacting context…" → "凝练上下文…", "Compacting conversation" → "精炼对话中" for Chinese users.
+- **Turn completion verbs localized** — New `getTurnCompletionVerbs()` function; Chinese users see "烹制了 5s" instead of "Baked for 5s".
+
+### Cleanup
+
+- Deleted dead code `src/commands/undo.ts` (was never registered in command list).
+- Fixed dead conditional in `extractImports`.
+
 ## [1.5.1] - 2026-04-19
 
 ### Features

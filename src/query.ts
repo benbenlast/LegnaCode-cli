@@ -45,6 +45,7 @@ import {
 import { estimateComplexity, getModelTier, logRoutingDecision } from './services/modelRouter.js'
 import { getBudgetPressureMessage } from './services/compact/budgetPressure.js'
 import { skillPatternDetector } from './services/skillAutoCreate.js'
+import { isChinese } from './utils/i18n.js'
 import { logAntError, logForDebugging } from './utils/debug.js'
 import {
   createUserMessage,
@@ -460,7 +461,7 @@ async function* queryLoop(
 
     queryCheckpoint('query_autocompact_start')
     logForDebugging('[autocompact] Starting context compaction...')
-    toolUseContext.setSpinnerMessage?.('Compacting context…')
+    toolUseContext.setSpinnerMessage?.(isChinese() ? '凝练上下文…' : 'Compacting context…')
     const { compactionResult, consecutiveFailures } = await deps.autocompact(
       messagesForQuery,
       toolUseContext,

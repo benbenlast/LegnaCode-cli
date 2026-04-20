@@ -120,14 +120,14 @@ const KEYWORDS: KeywordDef[] = [
  * Detect if a prompt implies deep scope (architecture, migration, refactor).
  * Returns a lightweight hint to append, or empty string.
  */
-function compoundScopeHint(prompt: string): string {
-  const cleaned = stripCode(prompt).toLowerCase()
+function compoundScopeHint(cleaned: string): string {
+  const lower = cleaned.toLowerCase()
   const deepSignals = [
     'refactor', 'migrate', 'architecture', 'redesign', 'rewrite', 'overhaul',
     '重构', '迁移', '架构', '重写', '重新设计',
     'リファクタ', 'アーキテクチャ', '移行',
   ]
-  const hits = deepSignals.filter(s => cleaned.includes(s)).length
+  const hits = deepSignals.filter(s => lower.includes(s)).length
   if (hits === 0) return ''
   return '\n\n[Compound hint: This looks like a significant change. Consider documenting key decisions and learnings for future reference.]'
 }
@@ -137,16 +137,15 @@ function compoundScopeHint(prompt: string): string {
  * Returns a lightweight strategy-shift hint, or empty string.
  * Ported from AtomCode's negative feedback detection.
  */
-function frustrationHint(prompt: string): string {
-  const cleaned = stripCode(prompt).trim()
-  // Only trigger on short messages (likely reactive frustration, not detailed instructions)
+const FRUSTRATION_PATTERNS = [
+  /\b(wrong|still broken|doesn't work|not working|failed again|try again|same error|same bug|still fails)\b/i,
+  /(?:改错|不对|错了|还是不行|又错|没用|不好使|搞坏了|又坏了|还是报错)/,
+  /(?:違う|まだ壊れ|動かない|また失敗|直ってない)/,
+]
+
+function frustrationHint(cleaned: string): string {
   if (cleaned.length > 120) return ''
-  const patterns = [
-    /\b(wrong|still broken|doesn't work|not working|failed again|try again|same error|same bug|still fails)\b/i,
-    /(?:改错|不对|错了|还是不行|又错|没用|不好使|搞坏了|又坏了|还是报错)/,
-    /(?:違う|まだ壊れ|動かない|また失敗|直ってない)/,
-  ]
-  if (!patterns.some(p => p.test(cleaned))) return ''
+  if (!FRUSTRATION_PATTERNS.some(p => p.test(cleaned))) return ''
   return '\n\n[The user seems frustrated with repeated failures. Try a fundamentally different approach instead of repeating the same strategy. Re-read the relevant code, question your assumptions, and consider an alternative solution path.]'
 }
 
@@ -166,16 +165,15 @@ export function processMagicKeywords(prompt: string): string {
   }
 
   // Compound engineering: append scope hint for deep changes (lightweight, ~15 tokens)
-  result += compoundScopeHint(result)
+  result += compoundScopeHint(cleaned)
 
   // AtomCode: append frustration hint when user seems stuck (~25 tokens)
-  result += frustrationHint(result)
+  result += frustrationHint(cleaned)
 
   // Design prompt: inject frontend/design guidelines when intent detected
   try {
-    // Use require() to stay synchronous — this module is lightweight
     const { detectFrontendIntent, getDesignPrompt } = require('./designPrompt.js')
-    const intent = detectFrontendIntent(stripCode(result))
+    const intent = detectFrontendIntent(cleaned)
     if (intent !== 'none') {
       result = `<design-guidelines>\n${getDesignPrompt(intent)}\n</design-guidelines>\n\n${result}`
     }

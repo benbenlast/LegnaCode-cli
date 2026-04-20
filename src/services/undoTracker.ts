@@ -6,7 +6,8 @@
  * Stack is per-session, max 20 entries.
  */
 
-import { readFileSync, writeFileSync, existsSync } from 'fs'
+import { writeFileSync, existsSync } from 'fs'
+import { readFile, stat } from 'fs/promises'
 import { logForDebugging } from '../utils/debug.js'
 
 interface UndoEntry {
@@ -17,19 +18,24 @@ interface UndoEntry {
 }
 
 const MAX_UNDO_STACK = 20
+const MAX_UNDO_FILE_SIZE = 1 * 1024 * 1024 // 1MB — skip undo for larger files
 const undoStack: UndoEntry[] = []
 
 /** Record file state before an edit. Call this BEFORE writing. */
-export function recordBeforeEdit(filePath: string, toolName: string): void {
+export async function recordBeforeEdit(filePath: string, toolName: string): Promise<void> {
   try {
     if (!existsSync(filePath)) {
-      // New file — undo means delete
       undoStack.push({ filePath, originalContent: '', timestamp: Date.now(), toolName })
     } else {
-      const content = readFileSync(filePath, 'utf-8')
+      // Skip undo recording for files larger than 1MB to avoid OOM
+      const st = await stat(filePath)
+      if (st.size > MAX_UNDO_FILE_SIZE) {
+        logForDebugging(`[undo] Skipping ${filePath} (${(st.size / 1024 / 1024).toFixed(1)}MB > 1MB limit)`)
+        return
+      }
+      const content = await readFile(filePath, 'utf-8')
       undoStack.push({ filePath, originalContent: content, timestamp: Date.now(), toolName })
     }
-    // Cap stack size
     if (undoStack.length > MAX_UNDO_STACK) {
       undoStack.splice(0, undoStack.length - MAX_UNDO_STACK)
     }

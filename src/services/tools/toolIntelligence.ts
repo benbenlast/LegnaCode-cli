@@ -9,8 +9,7 @@
  */
 
 import { createHash } from 'crypto'
-import { existsSync } from 'fs'
-import { readFileSync } from 'fs'
+import { access, readFile } from 'fs/promises'
 
 // ── Loop Detection ──────────────────────────────────────────────────
 
@@ -50,7 +49,7 @@ const FILE_PATH_RE = /(?:^|\s|['"`])((?:\/[\w.-]+)+\.(?:ts|tsx|js|jsx|py|rs|go|j
 const COMPILER_PATH_RE = /(?:^|\s)([\w./\\-]+\.(?:ts|tsx|js|jsx|py|rs|go|c|cpp|java))\s*[:(]\s*\d+/gm
 
 /** Extract file paths from error output and read first 30 lines of each. */
-export function extractErrorFiles(output: string, exitCode: number): string {
+export async function extractErrorFiles(output: string, exitCode: number): Promise<string> {
   if (exitCode === 0) return ''
 
   const paths = new Set<string>()
@@ -60,18 +59,14 @@ export function extractErrorFiles(output: string, exitCode: number): string {
   FILE_PATH_RE.lastIndex = 0
   while ((match = FILE_PATH_RE.exec(output)) !== null) {
     const p = match[1]!
-    if (existsSync(p) && paths.size < 3) {
-      paths.add(p)
-    }
+    try { await access(p); if (paths.size < 3) paths.add(p) } catch { /* not found */ }
   }
 
   // Compiler-style paths (file.ts:42, file.py(10))
   COMPILER_PATH_RE.lastIndex = 0
   while ((match = COMPILER_PATH_RE.exec(output)) !== null) {
     const p = match[1]!
-    if (existsSync(p) && paths.size < 3) {
-      paths.add(p)
-    }
+    try { await access(p); if (paths.size < 3) paths.add(p) } catch { /* not found */ }
   }
 
   if (paths.size === 0) return ''
@@ -79,7 +74,7 @@ export function extractErrorFiles(output: string, exitCode: number): string {
   const parts: string[] = ['\n[Auto-injected error context]']
   for (const p of paths) {
     try {
-      const content = readFileSync(p, 'utf-8')
+      const content = await readFile(p, 'utf-8')
       const lines = content.split('\n').slice(0, 30)
       parts.push(`--- ${p} (first 30 lines) ---\n${lines.join('\n')}`)
     } catch { /* skip unreadable */ }

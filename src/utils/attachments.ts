@@ -2622,7 +2622,7 @@ async function getDynamicSkillAttachments(
 // without per-agent scoping, the main thread populating this Set would cause
 // every subagent's filterToBundledAndMcp result to dedup to empty.
 const sentSkillNames = new Map<string, Set<string>>()
-
+let _cachedOmlGuidance: string | null = null
 // Called when the skill set genuinely changes (plugin reload, skill file
 // change on disk) so new skills get announced. NOT called on compact —
 // post-compact re-injection costs ~4K tokens/event for marginal benefit.
@@ -2757,12 +2757,15 @@ async function getSkillListingAttachments(
   )
   const content = formatCommandsWithinBudget(newSkills, contextWindowTokens)
 
-  // OML: inject session guidance so the AI proactively considers skills
+  // OML: inject session guidance so the AI proactively considers skills (cached)
   let enrichedContent = content
   try {
-    const { OML_SESSION_GUIDANCE } = await import('../plugins/bundled/oml/superpowers.js')
-    if (OML_SESSION_GUIDANCE) {
-      enrichedContent = `${OML_SESSION_GUIDANCE}\n\n${content}`
+    if (!_cachedOmlGuidance) {
+      const { OML_SESSION_GUIDANCE } = await import('../plugins/bundled/oml/superpowers.js')
+      _cachedOmlGuidance = OML_SESSION_GUIDANCE || ''
+    }
+    if (_cachedOmlGuidance) {
+      enrichedContent = `${_cachedOmlGuidance}\n\n${content}`
     }
   } catch { /* non-fatal */ }
 

@@ -24,6 +24,9 @@ export class FileMemoryProvider extends MemoryProvider {
   private store: DrawerStore | null = null
   private stack: LayeredStack | null = null
   private projectSlug: string = '_project'
+  // TTL cache for file reads (60s)
+  private _solutionsCache: { ts: number; data: Map<string, string> } = { ts: 0, data: new Map() }
+  private _memoryCache: { ts: number; data: Map<string, string> } = { ts: 0, data: new Map() }
 
   isAvailable(): boolean {
     return true
@@ -90,14 +93,21 @@ export class FileMemoryProvider extends MemoryProvider {
 
     if (parts.length > 0) return parts.join('\n\n')
 
-    // Fallback: plain keyword search
+    // Fallback: plain keyword search (with TTL cache)
     const keywords = query.toLowerCase().split(/\s+/).filter(w => w.length > 2)
     if (keywords.length === 0) return ''
     try {
-      const files = (await readdir(this.memoryDir)).filter(f => f.endsWith('.md'))
+      const now = Date.now()
+      if (now - this._memoryCache.ts > 60_000) {
+        this._memoryCache.data.clear()
+        const files = (await readdir(this.memoryDir)).filter(f => f.endsWith('.md'))
+        for (const file of files) {
+          this._memoryCache.data.set(file, await readFile(join(this.memoryDir, file), 'utf-8'))
+        }
+        this._memoryCache.ts = now
+      }
       const matches: string[] = []
-      for (const file of files) {
-        const content = await readFile(join(this.memoryDir, file), 'utf-8')
+      for (const [file, content] of this._memoryCache.data) {
         const lower = content.toLowerCase()
         const score = keywords.filter(kw => lower.includes(kw)).length
         if (score > 0) matches.push(`[${file}] ${content.slice(0, 200)}`)
@@ -116,19 +126,25 @@ export class FileMemoryProvider extends MemoryProvider {
     if (!existsSync(solutionsDir)) return null
 
     try {
-      const files = (await readdir(solutionsDir)).filter(f => f.endsWith('.md'))
-      if (files.length < 1) return null
-
       const keywords = query.toLowerCase().split(/\s+/).filter(w => w.length > 2)
       if (keywords.length === 0) return null
 
+      // TTL cache: reload files at most once per 60s
+      const now = Date.now()
+      if (now - this._solutionsCache.ts > 60_000) {
+        this._solutionsCache.data.clear()
+        const files = (await readdir(solutionsDir)).filter(f => f.endsWith('.md'))
+        for (const file of files.slice(-50)) {
+          this._solutionsCache.data.set(file, await readFile(join(solutionsDir, file), 'utf-8'))
+        }
+        this._solutionsCache.ts = now
+      }
+
       const hits: Array<{ file: string; score: number; preview: string }> = []
-      for (const file of files.slice(-50)) { // Only scan last 50 files
-        const content = await readFile(join(solutionsDir, file), 'utf-8')
+      for (const [file, content] of this._solutionsCache.data) {
         const lower = content.toLowerCase()
         const score = keywords.filter(kw => lower.includes(kw)).length
         if (score >= 2) {
-          // Extract problem line from frontmatter
           const problemMatch = content.match(/^problem:\s*"(.+?)"/m)
           const preview = problemMatch?.[1] || content.slice(0, 150)
           hits.push({ file, score, preview })

@@ -2,6 +2,28 @@
 
 All notable changes to LegnaCode CLI will be documented in this file.
 
+## [1.5.2] - 2026-04-20
+
+### Performance
+
+- **CodeGraph async 化** — `build()` 和 `walkDir()` 从同步改为异步，每 50 个文件 yield 事件循环，不再阻塞 UI 渲染。添加 `maxDepth=10` 深度限制和 `visitedInodes` 符号链接循环保护。`save()` 改为异步写入。
+- **undoTracker 大文件保护** — 添加 1MB 大小限制，超过的文件跳过 undo 快照记录（避免 OOM）。`readFileSync` 改为 `readFile` 异步。
+- **错误文件预注入 async 化** — `extractErrorFiles` 从 `existsSync`+`readFileSync` 改为 `access`+`readFile` 异步。
+- **stripCode 去重** — `magicKeywords.ts` 中 `stripCode()` 从 3-4 次调用减少到 1 次，结果传递给所有下游函数。
+- **FileMemoryProvider TTL 缓存** — `searchSolutions` 和 fallback 文件搜索添加 60 秒 TTL 缓存，避免每次 prefetch 重复读取磁盘。
+- **OML_SESSION_GUIDANCE 缓存** — `attachments.ts` 中 `await import()` 改为模块级缓存，首次加载后复用。
+- **frustrationHint patterns 提升** — 正则数组从函数内部提升到模块级常量。
+
+### i18n
+
+- **Compacting 状态文案中文化** — "Compacting context…" → "凝练上下文…"，"Compacting conversation" → "精炼对话中"。
+- **完成动词中文化** — 新增 `getTurnCompletionVerbs()` 函数，中文用户看到"烹制了 5s"而非"Baked for 5s"。
+
+### Cleanup
+
+- 删除死代码 `src/commands/undo.ts`（从未注册到命令列表）。
+- 修复 `extractImports` 死条件逻辑。
+
 ## [1.5.1] - 2026-04-19
 
 ### Features

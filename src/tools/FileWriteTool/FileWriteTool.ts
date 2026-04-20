@@ -247,7 +247,7 @@ export const FileWriteTool = buildTool({
     // AtomCode fusion: record file state for /undo support
     try {
       const { recordBeforeEdit } = await import('../../services/undoTracker.js')
-      recordBeforeEdit(fullFilePath, 'Write')
+      await recordBeforeEdit(fullFilePath, 'Write')
     } catch { /* non-fatal */ }
 
     await diagnosticTracker.beforeFileEdited(fullFilePath)

@@ -9,9 +9,12 @@
  * Injected into prefetch context so the agent knows file relationships.
  */
 
-import { existsSync, statSync, readdirSync, readFileSync, writeFileSync, mkdirSync } from 'fs'
-import { join, relative, extname, basename } from 'path'
+import { existsSync, mkdirSync } from 'fs'
+import { readdir, stat, readFile, writeFile } from 'fs/promises'
+import { join, relative, extname } from 'path'
 import { logForDebugging } from '../../utils/debug.js'
+
+const MAX_WALK_DEPTH = 10
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -109,34 +112,35 @@ export class CodeGraph {
   }
 
   /** Persist graph to disk */
-  private save(): void {
+  private async save(): Promise<void> {
     try {
       const dir = join(this.cwd, '.legna', '.palace')
       if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
-      writeFileSync(this.persistPath, JSON.stringify(this.data), 'utf-8')
+      await writeFile(this.persistPath, JSON.stringify(this.data), 'utf-8')
     } catch (e) {
       logForDebugging(`[codeGraph] save error: ${e}`)
     }
   }
 
   /** Incremental build: only re-parse files with changed mtime */
-  build(maxFiles = 500): void {
-    const files = this.walkDir(this.cwd, maxFiles)
+  async build(maxFiles = 500): Promise<void> {
+    const files = await this.walkDir(this.cwd, maxFiles)
     let updated = 0
+    let batch = 0
 
     for (const absPath of files) {
       const rel = relative(this.cwd, absPath)
       const ext = extname(absPath)
       try {
-        const mtime = statSync(absPath).mtimeMs
+        const st = await stat(absPath)
+        const mtime = st.mtimeMs
         const existing = this.data.files[rel]
         if (existing && existing.mtime === mtime) continue
 
-        const content = readFileSync(absPath, 'utf-8')
+        const content = await readFile(absPath, 'utf-8')
         const symbols = this.extractSymbols(content, ext, rel)
         const imports = this.extractImports(content, ext)
 
-        // Update file entry
         this.data.files[rel] = {
           imports,
           importedBy: existing?.importedBy ?? [],
@@ -144,11 +148,16 @@ export class CodeGraph {
           mtime,
         }
 
-        // Update symbol index
         for (const sym of symbols) {
           this.data.symbols[sym.name] = { file: rel, kind: sym.kind, line: sym.line }
         }
         updated++
+
+        // Yield event loop every 50 files to avoid blocking UI
+        if (++batch >= 50) {
+          batch = 0
+          await new Promise(r => setTimeout(r, 0))
+        }
       } catch { /* skip unreadable */ }
     }
 
@@ -166,7 +175,7 @@ export class CodeGraph {
         }
       }
       this.data.buildTime = new Date().toISOString()
-      this.save()
+      await this.save()
       logForDebugging(`[codeGraph] Built: ${Object.keys(this.data.files).length} files, ${Object.keys(this.data.symbols).length} symbols, ${updated} updated`)
     }
   }
@@ -258,8 +267,7 @@ export class CodeGraph {
     let match: RegExpExecArray | null
     while ((match = re.exec(content)) !== null) {
       const imp = match[1] || match[2]
-      if (imp && !imp.startsWith('.') === false) imports.push(imp)
-      else if (imp) imports.push(imp)
+      if (imp) imports.push(imp)
     }
     return [...new Set(imports)]
   }
@@ -276,22 +284,34 @@ export class CodeGraph {
     return null
   }
 
-  private walkDir(dir: string, maxFiles: number): string[] {
+  private async walkDir(dir: string, maxFiles: number): Promise<string[]> {
     const results: string[] = []
-    const walk = (d: string) => {
-      if (results.length >= maxFiles) return
+    const visitedInodes = new Set<bigint>()
+    const walk = async (d: string, depth: number) => {
+      if (results.length >= maxFiles || depth > MAX_WALK_DEPTH) return
       try {
-        for (const entry of readdirSync(d, { withFileTypes: true })) {
+        const entries = await readdir(d, { withFileTypes: true })
+        for (const entry of entries) {
           if (results.length >= maxFiles) return
+          const fullPath = join(d, entry.name)
           if (entry.isDirectory()) {
-            if (!IGNORED_DIRS.has(entry.name)) walk(join(d, entry.name))
+            if (IGNORED_DIRS.has(entry.name)) continue
+            // Symlink loop protection
+            try {
+              const st = await stat(fullPath)
+              if (visitedInodes.has(BigInt(st.ino))) continue
+              visitedInodes.add(BigInt(st.ino))
+            } catch { continue }
+            await walk(fullPath, depth + 1)
           } else if (SUPPORTED_EXTS.has(extname(entry.name))) {
-            results.push(join(d, entry.name))
+            results.push(fullPath)
           }
         }
+        // Yield event loop every directory to stay responsive
+        if (depth <= 2) await new Promise(r => setTimeout(r, 0))
       } catch { /* permission denied etc */ }
     }
-    walk(dir)
+    await walk(dir, 0)
     return results
   }
 }

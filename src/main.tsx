@@ -418,7 +418,7 @@ export function startDeferredPrefetches(): void {
     try {
       const { CodeGraph } = await import('./services/codeGraph/codeGraph.js')
       const graph = new CodeGraph(getCwd())
-      graph.build(500)
+      await graph.build(500)
       // Store on globalThis for prefetch access
       ;(globalThis as any).__legnaCodeGraph = graph
     } catch { /* non-fatal */ }
