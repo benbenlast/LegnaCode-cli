@@ -3,6 +3,7 @@ import type { ToolResultBlockParam } from '@anthropic-ai/sdk/resources/index.mjs
 import { copyFile, stat as fsStat, truncate as fsTruncate, link } from 'fs/promises';
 import * as React from 'react';
 import type { CanUseToolFn } from 'src/hooks/useCanUseTool.js';
+import { ShellEscalationProtocol } from '../../security/shellEscalation/escalation.js';
 import type { AppState } from 'src/state/AppState.js';
 import { z } from 'zod/v4';
 import { getKairosActive } from '../../bootstrap/state.js';
@@ -886,7 +887,30 @@ async function* runShellCommand({
   // Only enable for commands that are allowed to be auto-backgrounded
   // and when background tasks are not disabled
   const shouldAutoBackground = !isBackgroundTasksDisabled && isAutobackgroundingAllowed(command);
-  const shellCommand = await exec(command, abortController.signal, 'bash', {
+
+  // Shell escalation protocol: evaluate command before execution.
+  // If the protocol returns a modified (sandboxed) command, use that instead.
+  let finalCommand = command;
+  try {
+    const protocol = new ShellEscalationProtocol();
+    const escalation = await protocol.evaluate({
+      command,
+      workingDir: process.cwd(),
+      env: process.env as Record<string, string>,
+      requestedBy: 'BashTool',
+    });
+    if (escalation.decision === 'deny') {
+      yield { type: 'result', resultForAssistant: `Command denied by shell escalation protocol: ${escalation.reason}`, resultForUser: `Denied: ${escalation.reason}` } as any;
+      return;
+    }
+    if (escalation.modifiedCommand) {
+      finalCommand = escalation.modifiedCommand;
+    }
+  } catch {
+    // Shell escalation is best-effort — continue with original command
+  }
+
+  const shellCommand = await exec(finalCommand, abortController.signal, 'bash', {
     timeout: timeoutMs,
     onProgress(lastLines, allLines, totalLines, totalBytes, isIncomplete) {
       lastProgressOutput = lastLines;

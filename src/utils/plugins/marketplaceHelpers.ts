@@ -6,6 +6,7 @@ import { plural } from '../stringUtils.js'
 import { checkGitAvailable } from './gitAvailability.js'
 import { getMarketplace } from './marketplaceManager.js'
 import type { KnownMarketplace, MarketplaceSource } from './schemas.js'
+import { getCodexCompatMarketplace } from '../../services/pluginCompat/codexMarketplace.js'
 
 /**
  * Format plugin failure details for user display
@@ -108,6 +109,24 @@ export async function loadMarketplacesWithGracefulDegradation(
       config: marketplaceConfig,
       data,
     })
+  }
+
+  // Append Codex-compat marketplace (best-effort, never blocks browsing)
+  try {
+    const codexMkt = await getCodexCompatMarketplace()
+    if (codexMkt) {
+      marketplaces.push({
+        name: 'codex-compat',
+        config: {
+          installLocation: '',
+          lastUpdated: new Date().toISOString(),
+          source: { source: 'settings', name: 'codex-compat' },
+        } as KnownMarketplace,
+        data: codexMkt as any,
+      })
+    }
+  } catch {
+    // Codex marketplace is optional — swallow errors silently
   }
 
   return { marketplaces, failures }

@@ -37,8 +37,9 @@ export function generateL0(content: string): string {
 }
 
 /**
- * Generate L1 overview: first 3 sentences or 400 chars, whichever is shorter.
- * Preserves the highest keyword-density sentences.
+ * Generate L1 overview: selects the most information-dense sentences up to 400 chars.
+ * Uses keyword density scoring: sentences with more non-stopword terms rank higher.
+ * Always includes the first sentence for context anchoring.
  */
 export function generateL1(content: string): string {
   const trimmed = content.trim()
@@ -51,8 +52,41 @@ export function generateL1(content: string): string {
     return trimmed.slice(0, 400)
   }
 
-  // Take first 3 sentences
-  let result = sentences.slice(0, 3).join(' ')
+  // Score each sentence by keyword density (non-stopword ratio)
+  const STOP = new Set([
+    'a','an','the','and','or','but','in','on','at','to','for','of','with','by',
+    'from','is','it','its','was','are','were','be','been','being','have','has',
+    'had','do','does','did','will','would','could','should','this','that','these',
+    'those','i','me','my','we','our','you','your','he','him','his','she','her',
+    'they','them','their','not','so','very','just','also','as','if','then','there',
+  ])
+
+  const scored = sentences.map((s, idx) => {
+    const words = s.toLowerCase().split(/\W+/).filter(w => w.length > 1)
+    const keywords = words.filter(w => !STOP.has(w))
+    // Density = keyword ratio * sqrt(keyword count) — rewards both density and richness
+    const density = words.length > 0
+      ? (keywords.length / words.length) * Math.sqrt(keywords.length)
+      : 0
+    return { s, idx, density }
+  })
+
+  // Always include first sentence (context anchor), then top by density
+  const first = scored[0]!
+  const rest = scored.slice(1).sort((a, b) => b.density - a.density)
+
+  // Greedily fill up to 400 chars, preserving original order
+  const selected = [first]
+  let totalLen = first.s.length
+  for (const candidate of rest) {
+    if (totalLen + candidate.s.length + 1 > 400) continue
+    selected.push(candidate)
+    totalLen += candidate.s.length + 1
+  }
+
+  // Sort by original position for coherent reading
+  selected.sort((a, b) => a.idx - b.idx)
+  let result = selected.map(s => s.s).join(' ')
   if (result.length > 400) {
     result = result.slice(0, 400)
     const lastSpace = result.lastIndexOf(' ')

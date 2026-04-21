@@ -4,8 +4,10 @@
  * Flags:
  *   --global    Migrate global data ~/.claude/ → ~/.legna/
  *   --sessions  Migrate current project sessions to .legna/sessions/
- *   --all       Both (default)
+ *   --agents    Import config from other AI tools (Codex, Cursor, Copilot)
+ *   --all       All of the above (default)
  *   --dry-run   Preview only, no writes
+ *   --force     Overwrite existing config during agent import
  */
 
 import { copyFileSync, existsSync, mkdirSync, readdirSync } from 'fs'
@@ -143,13 +145,72 @@ function migrateSessions(cwd: string, dryRun: boolean): MigrateStats {
   return stats
 }
 
+function migrateAgentConfigs(dryRun: boolean, force: boolean): { imported: number; skipped: number; errors: number } {
+  const totals = { imported: 0, skipped: 0, errors: 0 }
+
+  let AgentConfigMigrator: typeof import('../../utils/agentConfigMigration/index.js').AgentConfigMigrator
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    AgentConfigMigrator = require('../../utils/agentConfigMigration/index.js').AgentConfigMigrator
+  } catch {
+    console.log('  Agent config migration module not available.')
+    return totals
+  }
+
+  const migrator = new AgentConfigMigrator()
+  const detected = migrator.detect()
+
+  if (detected.length === 0) {
+    console.log('  No external AI coding tools detected.')
+    return totals
+  }
+
+  console.log(`  Detected: ${detected.map(a => a.name).join(', ')}`)
+
+  for (const agent of detected) {
+    const supported = migrator.listSupportedAgents()
+    if (!supported.includes(agent.name)) {
+      console.log(`  ${agent.name}: no importer available (skipped)`)
+      continue
+    }
+
+    if (dryRun) {
+      const preview = migrator.preview(agent.name)
+      if (preview.imported.length) {
+        console.log(`  ${agent.name} [dry-run]: would import ${preview.imported.join(', ')}`)
+        totals.imported += preview.imported.length
+      }
+    } else {
+      const result = migrator.import(agent.name, { force })
+      if (result.imported.length) {
+        console.log(`  ${agent.name}: imported ${result.imported.join(', ')}`)
+        totals.imported += result.imported.length
+      }
+      if (result.skipped.length) {
+        console.log(`  ${agent.name}: skipped ${result.skipped.join(', ')}`)
+        totals.skipped += result.skipped.length
+      }
+      if (result.errors.length) {
+        console.log(`  ${agent.name}: errors — ${result.errors.join(', ')}`)
+        totals.errors += result.errors.length
+      }
+    }
+  }
+
+  return totals
+}
+
 export async function runMigrate(args: string[]): Promise<void> {
   const dryRun = args.includes('--dry-run')
+  const force = args.includes('--force')
   const wantGlobal = args.includes('--global')
   const wantSessions = args.includes('--sessions')
-  const wantAll = args.includes('--all') || (!wantGlobal && !wantSessions)
+  const wantAgents = args.includes('--agents')
+  const wantAll = args.includes('--all') || (!wantGlobal && !wantSessions && !wantAgents)
 
   const cwd = process.cwd()
+  const steps = (wantAll ? 3 : [wantGlobal, wantSessions, wantAgents].filter(Boolean).length)
+  let step = 0
 
   console.log(`\nLegnaCode Migrate${dryRun ? ' (dry-run)' : ''}\n`)
 
@@ -157,7 +218,8 @@ export async function runMigrate(args: string[]): Promise<void> {
   let totalSkipped = 0
 
   if (wantAll || wantGlobal) {
-    console.log('[1/2] Global config migration (~/.claude/ → ~/.legna/)')
+    step++
+    console.log(`[${step}/${steps}] Global config migration (~/.claude/ → ~/.legna/)`)
     const gs = migrateGlobal(dryRun)
     totalFiles += gs.files
     totalSkipped += gs.skipped
@@ -165,14 +227,24 @@ export async function runMigrate(args: string[]): Promise<void> {
   }
 
   if (wantAll || wantSessions) {
-    console.log(`[2/2] Session migration → ${join(cwd, '.legna', 'sessions')}/`)
+    step++
+    console.log(`[${step}/${steps}] Session migration → ${join(cwd, '.legna', 'sessions')}/`)
     const ss = migrateSessions(cwd, dryRun)
     totalFiles += ss.files
     totalSkipped += ss.skipped
     console.log()
   }
 
-  console.log(`Done. ${totalFiles} file(s) copied, ${totalSkipped} skipped.`)
+  if (wantAll || wantAgents) {
+    step++
+    console.log(`[${step}/${steps}] External agent config import`)
+    const as_ = migrateAgentConfigs(dryRun, force)
+    totalFiles += as_.imported
+    totalSkipped += as_.skipped
+    console.log()
+  }
+
+  console.log(`Done. ${totalFiles} file(s) copied/imported, ${totalSkipped} skipped.`)
   if (dryRun) {
     console.log('(dry-run mode — no files were actually written)')
   }

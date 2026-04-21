@@ -654,11 +654,28 @@ function loadSettingsFromDisk(): SettingsWithErrors {
 
   isLoadingSettings = true
   try {
-    // Start with plugin settings as the lowest priority base.
+    // Start with Codex compat config as the absolute lowest priority base.
+    // If ~/.codex/config.toml exists, import mapped values so users
+    // switching from Codex get a seamless experience. Any LegnaCode
+    // setting from any source overrides these.
+    let mergedSettings: SettingsJson = {}
+    try {
+      const { readCodexConfigSync, mapCodexToLegnaSettings } = require('../configCompat/codexConfigReader.js')
+      const codexConfig = readCodexConfigSync()
+      if (codexConfig) {
+        const mapped = mapCodexToLegnaSettings(codexConfig)
+        if (mapped.env) {
+          mergedSettings = mergeWith(mergedSettings, { env: mapped.env }, settingsMergeCustomizer)
+        }
+      }
+    } catch {
+      // Codex compat is best-effort — never block settings loading
+    }
+
+    // Plugin settings as the next lowest priority base.
     // All file-based sources (user, project, local, flag, policy) override these.
     // Plugin settings only contain allowlisted keys (e.g., agent) that are valid SettingsJson fields.
     const pluginSettings = getPluginSettingsBase()
-    let mergedSettings: SettingsJson = {}
     if (pluginSettings) {
       mergedSettings = mergeWith(
         mergedSettings,

@@ -102,6 +102,7 @@ import {
   loadKnownMarketplacesConfigSafe,
 } from './marketplaceManager.js'
 import { getPluginSeedDirs, getPluginsDirectory } from './pluginDirectories.js'
+import { createLoadedPluginFromCodex } from '../../services/pluginCompat/codexPluginAdapter.js'
 import { parsePluginIdentifier } from './pluginIdentifier.js'
 import { validatePathWithinBase } from './pluginInstallationHelpers.js'
 import { calculatePluginVersion } from './pluginVersioning.js'
@@ -3171,11 +3172,23 @@ async function assemblePluginLoadResult(
   // 3. Load built-in plugins that ship with the CLI
   const builtinResult = getBuiltinPlugins()
 
+  // 3b. Scan CWD for Codex-format plugins (codex-plugin.json / .codex/plugin.json)
+  const codexCompatPlugins: LoadedPlugin[] = []
+  try {
+    const codexPlugin = await createLoadedPluginFromCodex(process.cwd())
+    if (codexPlugin) {
+      logForDebugging(`Detected Codex-format plugin in CWD: ${codexPlugin.name}`)
+      codexCompatPlugins.push(codexPlugin)
+    }
+  } catch {
+    // Codex detection is best-effort — never block plugin loading
+  }
+
   // Session plugins (--plugin-dir) override installed ones by name,
   // UNLESS the installed plugin is locked by managed settings
   // (policySettings). See mergePluginSources() for details.
   const { plugins: allPlugins, errors: mergeErrors } = mergePluginSources({
-    session: sessionResult.plugins,
+    session: [...sessionResult.plugins, ...codexCompatPlugins],
     marketplace: marketplaceResult.plugins,
     builtin: [...builtinResult.enabled, ...builtinResult.disabled],
     managedNames: getManagedPluginNames(),

@@ -9,6 +9,7 @@ import {
 } from '../../utils/file.js'
 import { getFsImplementation } from '../../utils/fsOperations.js'
 import { glob } from '../../utils/glob.js'
+import { nativeGlobSearch } from '../../native/fileSearchBinding.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { expandPath, toRelativePath } from '../../utils/path.js'
 import { checkReadPermissionForTool } from '../../utils/permissions/filesystem.js'
@@ -155,13 +156,29 @@ export const GlobTool = buildTool({
     const start = Date.now()
     const appState = getAppState()
     const limit = globLimits?.maxResults ?? 100
-    const { files, truncated } = await glob(
-      input.pattern,
-      GlobTool.getPath(input),
-      { limit, offset: 0 },
-      abortController.signal,
-      appState.toolPermissionContext,
-    )
+    const rootDir = GlobTool.getPath(input)
+
+    // Try native Rust glob first (3-5x faster on large repos)
+    const nativeResults = nativeGlobSearch(input.pattern, rootDir)
+    let files: string[]
+    let truncated: boolean
+
+    if (nativeResults !== null) {
+      truncated = nativeResults.length > limit
+      files = nativeResults.slice(0, limit)
+    } else {
+      // Fallback to TS glob
+      const result = await glob(
+        input.pattern,
+        rootDir,
+        { limit, offset: 0 },
+        abortController.signal,
+        appState.toolPermissionContext,
+      )
+      files = result.files
+      truncated = result.truncated
+    }
+
     // Relativize paths under cwd to save tokens (same as GrepTool)
     const filenames = files.map(toRelativePath)
     const output: Output = {

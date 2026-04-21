@@ -46,8 +46,11 @@ export class LayeredStack {
   }
 
   /**
-   * Budget-aware wake-up: L0 identity + top drawers with degradation.
-   * Fills token budget greedily: tries L1 first, degrades to L0 if over budget.
+   * Budget-aware wake-up: L0 identity + top drawers with two-pass filling.
+   *
+   * Pass 1: Fill with L1 summaries for top-importance drawers (richer context).
+   * Pass 2: Backfill remaining budget with L0 summaries from skipped drawers
+   *         (maximizes coverage — more memories at lower fidelity).
    */
   wakeUp(wing?: string, tokenBudget = DEFAULT_WAKEUP_BUDGET): WakeUpResult {
     let budget = tokenBudget
@@ -60,32 +63,46 @@ export class LayeredStack {
       budget -= estimateTokens(this.identityText)
     }
 
-    // Phase 2: Top drawers, budget-capped with degradation
-    const topDrawers = this.store.topByImportance(30, wing)
-    const lines: string[] = []
+    // Phase 2: Two-pass drawer filling
+    const topDrawers = this.store.topByImportance(40, wing)
+    const l1Lines: string[] = []
+    const skippedForL0: Drawer[] = []
 
+    // Pass 1: Greedily fill with L1 summaries
     for (const d of topDrawers) {
       if (budget <= 0) break
 
       const l1Text = d.contentL1 || d.content.slice(0, 400)
-      const l0Text = d.contentL0 || d.content.slice(0, 100)
       const l1Cost = estimateTokens(l1Text)
-      const l0Cost = estimateTokens(l0Text)
 
       if (l1Cost <= budget) {
-        lines.push(`- [${d.room}] ${l1Text}`)
+        l1Lines.push(`- [${d.room}] ${l1Text}`)
         budget -= l1Cost
         drawerCount++
-      } else if (l0Cost <= budget) {
-        lines.push(`- [${d.room}] ${l0Text}`)
+      } else {
+        // Can't fit L1 — save for L0 backfill pass
+        skippedForL0.push(d)
+      }
+    }
+
+    // Pass 2: Backfill with L0 summaries from skipped drawers
+    const l0Lines: string[] = []
+    for (const d of skippedForL0) {
+      if (budget <= 0) break
+
+      const l0Text = d.contentL0 || d.content.slice(0, 100)
+      const l0Cost = estimateTokens(l0Text)
+
+      if (l0Cost <= budget) {
+        l0Lines.push(`- [${d.room}] ${l0Text}`)
         budget -= l0Cost
         drawerCount++
       }
-      // else: skip — can't fit even L0
     }
 
-    if (lines.length > 0) {
-      parts.push(`[Key Memories]\n${lines.join('\n')}`)
+    const allLines = [...l1Lines, ...l0Lines]
+    if (allLines.length > 0) {
+      parts.push(`[Key Memories]\n${allLines.join('\n')}`)
     }
 
     const text = parts.join('\n\n')

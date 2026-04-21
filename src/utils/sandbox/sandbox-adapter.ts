@@ -24,6 +24,8 @@ import { rmSync, statSync } from 'fs'
 import { readFile } from 'fs/promises'
 import { memoize } from 'lodash-es'
 import { join, resolve, sep } from 'path'
+import { hasNativeSandbox } from '../../native/index.js'
+import { sandboxExec, type SandboxExecOptions } from '../../native/sandboxBinding.js'
 import {
   getAdditionalDirectoriesForClaudeMd,
   getCwdState,
@@ -718,6 +720,24 @@ async function wrapWithSandbox(
     } else {
       throw new Error('Sandbox failed to initialize. ')
     }
+  }
+
+  // Prefer native Rust kernel-level sandbox when available (Level 3)
+  // This provides direct OS-level isolation via landlock/pledge/seatbelt
+  // without the overhead of the JS sandbox-runtime wrapper chain
+  if (hasNativeSandbox) {
+    const cwd = getOriginalCwd()
+    const nativeOpts: SandboxExecOptions = {
+      mode: 'workspace-write',
+      writablePaths: [cwd, '/tmp', '/private/tmp'],
+      readablePaths: ['/'],
+      networkPolicy: 'blocked',
+    }
+    // Return a wrapper script that invokes the native sandbox at exec time
+    // The actual sandboxExec() call happens in Shell.ts via the native binding
+    const marker = `__LEGNA_NATIVE_SANDBOX__`
+    const optsB64 = Buffer.from(JSON.stringify(nativeOpts)).toString('base64')
+    return `${marker}:${optsB64}:${command}`
   }
 
   return BaseSandboxManager.wrapWithSandbox(

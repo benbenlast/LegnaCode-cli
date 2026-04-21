@@ -2,6 +2,87 @@
 
 All notable changes to LegnaCode CLI will be documented in this file.
 
+## [1.8.0] - 2026-04-21
+
+> Codex 全面融合版 — 5 阶段将 OpenAI Codex CLI 能力集成到 LegnaCode。
+
+### 安全（Phase 1 + Phase 2）
+
+- **进程硬化** — 禁用 core dump、检测 ptrace 附加、清理危险环境变量（`LD_PRELOAD`、`DYLD_INSERT_LIBRARIES`、`NODE_OPTIONS` 注入）。
+- **静态执行策略引擎** — TOML 格式命令执行规则（`prefix`/`glob`/`regex` 匹配）。内置默认规则阻断破坏性命令（`rm -rf /`、`mkfs`），提示包安装，放行只读操作。在 LLM 分类器之前评估——`forbidden` → 直接拒绝，`allow` → 直接放行，`prompt` → 走现有审批流。
+- **密钥检测器** — 正则模式库覆盖 AWS 密钥、GitHub Token、JWT、Slack Token、私钥、通用 API Key。记忆管线自动脱敏（`[REDACTED:type]`）。
+- **Rollback** — 完整实现，含时间线扫描、`--dry-run` 预览、`--safe` 备份分支创建。
+- **Guardian 子代理** — 专用工具调用风险评估，6 类分类体系。基于规则的快速预分类（30+ 模式），紧凑转录构建器（<2000 tokens），fail-closed 设计。
+- **Shell 升级协议** — 三级执行决策：`sandbox`/`escalate`/`deny`。平台感知包装：macOS Seatbelt、Linux bubblewrap、降级 `unshare --net`。
+- **网络策略代理** — 域名级访问控制，`full`/`limited`/`blocked` 三种模式，通配符模式，黑名单优先，JSONL 审计日志。
+
+### 性能（Phase 4）
+
+- **Rust 原生 NAPI Addon** — `cosine_similarity`（SIMD f32）、`tfidf_vectorize`（Rayon 并行）、`content_hash`（SHA-256 流式）、`estimate_tokens`（无分支 CJK 感知）。约 10-50 倍加速，自动 TS 降级。
+- **内核级沙箱** — macOS 通过 `sandbox_init()` 编译 Seatbelt，Linux 通过 `prctl` seccomp-bpf。无外部依赖。
+- **两阶段唤醒填充** — 贪心 L1 填充 + L0 回填，在相同 token 预算内最大化深度和覆盖面。
+- **关键词密度 L1** — 句子按 `(关键词比率 × √关键词数)` 排序，替代朴素的"取前3句"。
+- **Token ROI 排序** — 按召回次数与成本比排序；频繁召回的紧凑记忆优于仅召回一次的冗长记忆。
+
+### 新功能（Phase 3 + Phase 5）
+
+- **协作模式系统** — 基于 YAML frontmatter 的 `.md` 模板化模式。内置：`default`、`plan`、`execute`、`pair`。三级加载（内置→用户→项目）。`/mode` 命令运行时切换。
+- **JS REPL Bridge** — REPL 全局作用域注入 `legnacode` 对象：`tool()`、`readFile()`、`exec()`、`glob()`、`grep()`、`emitImage()`。
+- **App-Server JSON-RPC** — 完整 JSON-RPC 2.0，7 组方法（`thread/*`、`turn/*`、`fs/*`、`config/*`、`mcpServer/*`、`model/*`、`skills/*`）。流式通知。stdio + WebSocket 传输。
+- **外部代理配置迁移** — `/migrate` 检测 Codex、Cursor、Copilot、Windsurf、Aider、Continue。导入配置、MCP 服务器、规则。
+- **Codex 插件兼容层** — `codex-plugin.json` 清单适配器。市场注册表抓取器带缓存。安装 + 认证策略引擎。集成到插件加载管线（CWD 自动扫描）和市场浏览器。
+- **Codex Skills 兼容** — 自动发现 `~/.codex/skills/`。Frontmatter 规范化器（`triggers` → `when_to_use`、`tools` → `allowed-tools`、`invoke` → `argument-hint`）。
+- **Codex 配置互通** — 双向 `~/.codex/config.toml` 映射。作为最低优先级 settings 基底自动导入。
+- **TypeScript SDK**（`@legna/legnacode-sdk`）— `LegnaCode` 客户端、`Thread` 类、stdio/WebSocket 传输、结构化输出。`Codex` 别名。
+- **Python SDK**（`legnacode-sdk`）— 异步客户端、Thread、JSON-RPC 传输、dataclass 类型。`Codex` 别名。
+- **TTS 语音输出** — 原生后端（macOS `say`、Linux `espeak`）。流式队列。优雅降级。
+- **WebRTC 语音传输** — 基于 WebRTC 的双向音频。信令、ICE 交换、对等连接。Stub 降级。
+
+## [1.6.1] - 2026-04-24
+
+### 性能
+
+- **Rust 原生 NAPI Addon** — 核心热路径操作用 Rust 重写，通过 `napi-rs` 集成。`cosine_similarity`（SIMD 加速 f32 点积）、`tfidf_vectorize`（Rayon 并行 TF-IDF）、`content_hash`（SHA-256 流式哈希）、`estimate_tokens`（无分支 CJK 感知计数）。TypeScript 绑定层在原生模块不可用时自动降级到纯 TS 实现。向量运算约 10-50 倍加速。
+
+### 安全
+
+- **内核级沙箱集成** — Rust 原生沙箱配置替代 shell-exec 包装器。macOS：通过 `sandbox_init()` 进程内编译 Seatbelt 配置（无需 `sandbox-exec` 子进程）。Linux：直接 `prctl` seccomp-bpf 系统调用过滤（无需 `bwrap`/`unshare` 依赖）。平台能力检测与优雅降级。`SandboxNative` 类提供 `applySeatbelt()` / `applySeccomp()` / `detect()` API。
+
+### 改进
+
+- **两阶段唤醒填充** — `LayeredStack.wakeUp()` 现采用两阶段策略：第一阶段贪心填充 L1 摘要（更丰富的上下文），第二阶段用跳过的抽屉的 L0 摘要回填剩余预算。在相同 token 预算内同时最大化深度和覆盖面。
+- **关键词密度 L1 生成** — `generateL1()` 将朴素的"取前3句"替换为关键词密度评分。句子按 `(关键词比率 × √关键词数)` 排序，首句始终锚定上下文，高密度句子贪心填充至 400 字符，按原始位置重排以保持连贯阅读。
+- **Token ROI 排序** — `topByImportance()` 和 `search()` 现在纳入 token ROI 因子：召回次数与成本比高的记忆获得提升。频繁召回的紧凑记忆优于仅召回一次的冗长记忆。新增 content_hash 索引加速去重查询。
+
+## [1.6.0] - 2026-04-23
+
+### 新功能
+
+- **协作模式系统** — 基于 YAML frontmatter 的 `.md` 模板化协作模式。三级加载：内置（`src/services/collaborationModes/templates/`）、用户级（`~/.legnacode/modes/`）、项目级（`.legnacode/modes/`）。后级按模式 ID 覆盖前级。模式控制系统提示注入、工具限制（允许/拒绝列表）和行为标志（`readOnly`、`autoExecute`、`stepByStep`、`requirePlan`）。内置四种模式：`default`、`plan`、`execute`、`pair`。新增 `/mode` 斜杠命令，运行时列出和切换模式。
+- **JS REPL Bridge** — 在 JavaScript REPL 全局作用域注入公开的 `legnacode` 对象。提供 `tool()` 调用任意 LegnaCode 工具、`readFile()`、`exec()`、`glob()`、`grep()` 快捷方法，以及 `emitImage()` 渲染 base64/Buffer/文件路径图片。支持在 REPL 会话中脚本化 LegnaCode 能力。
+- **App-Server JSON-RPC 层** — 完整的 JSON-RPC 2.0 基础设施，面向 IDE 集成。路由器支持方法注册和分发。七组方法：`thread/*`（会话生命周期、分叉、回滚、压缩）、`turn/*`（消息发送、引导、中断）、`fs/*`（读写/元数据）、`config/*`（读写/批量）、`mcpServer/*`（状态、资源、工具调用）、`model/list`、`skills/list` + `collaborationMode/list`。流式通知推送 `item/*`、`turn/*`、`agentMessage/delta`。两种传输：stdio（JSONL）和 WebSocket（带心跳保活）。独立入口 `legnacode app-server --transport stdio|websocket`。
+- **外部代理配置迁移** — 检测并导入其他 AI 编码工具的配置。检测器覆盖 Codex、Cursor、GitHub Copilot、Windsurf、Aider、Continue。导入器支持 Codex（TOML/JSON → 模型 + MCP 服务器）、Cursor（settings.json → MCP 服务器 + `.cursorrules` → `LEGNACODE.md`）、Copilot（`copilot-instructions.md` → `LEGNACODE.md`）。集成到 `/migrate --agents` 标志，也可独立使用。支持 `--dry-run` 预览和 `--force` 覆盖。
+
+## [1.5.9] - 2026-04-22
+
+### 安全
+
+- **Guardian 子代理** — 专用工具调用风险评估审批代理。六类风险分类体系（data_exfiltration、credential_probing、security_weakening、destructive_action、privilege_escalation、supply_chain）。基于规则的快速预分类，30+ 信号模式。紧凑转录构建器将会话历史压缩至 <2000 tokens。Fail-closed 设计：超时/错误/格式错误 → 拒绝。结构化 JSON 评估输出。可通过 `guardian` 设置字段配置。
+- **Shell 升级协议** — 三级命令执行决策：`sandbox`（受限环境）、`escalate`（需用户确认）、`deny`（拒绝执行）。平台感知沙箱包装：macOS Seatbelt（`sandbox-exec`）、Linux bubblewrap（`bwrap`）、Linux 降级方案（`unshare --net`）。集成 execPolicy + Guardian 预分类进行决策。检测需要外部写入或网络访问的命令。
+- **网络策略代理** — 域名级网络访问控制，覆盖所有出站请求。三种模式：`full`（无限制）、`limited`（仅 GET/HEAD/OPTIONS）、`blocked`（全部拒绝）。支持通配符域名模式（`*.example.com`）。黑名单优先于白名单。JSONL 审计日志写入 `~/.legnacode/logs/network-audit.jsonl`。可通过 `~/.legnacode/network-policy.toml` 配置。
+
+## [1.5.8] - 2026-04-22
+
+### 安全
+
+- **进程硬化** — 启动时运行的安全模块，灵感来自 Codex 的 `process-hardening`。清除危险环境变量（`LD_PRELOAD`、`DYLD_INSERT_LIBRARIES`、`ELECTRON_RUN_AS_NODE`），净化 `NODE_OPTIONS`（移除 `--require`/`--loader` 注入标志），Linux 下禁用 core dump，检测 ptrace 附加。
+- **静态执行策略引擎** — 基于规则的命令评估，在 shell 执行前拦截。支持前缀、glob、正则、宿主可执行文件四种匹配器。内置默认规则（禁止 `rm -rf /`、管道到 shell、fork 炸弹；提示包安装和 `sudo`；允许只读 git/文件操作）。用户可通过 `.legnacode/exec-policy.toml`（项目级）或 `~/.legnacode/exec-policy.toml`（全局）自定义。兼容 Codex 函数调用语法。
+- **密钥检测与脱敏** — 基于模式匹配的检测器，覆盖 25+ 种密钥类型（AWS 密钥、GitHub PAT、Stripe 密钥、OpenAI/Anthropic API 密钥、JWT、私钥、数据库 URL 等）。集成到自动记忆写入管道 — 密钥在持久化到 `.legna/memory/` 前被替换为 `[REDACTED:type]`。
+
+### 新功能
+
+- **Rollback CLI** — 完整实现回滚命令。列出检查点历史，支持按索引或消息 ID 前缀定位目标，支持 `--dry-run`（预览变更）、`--safe`（回滚前创建 git 备份分支）、`--list`（显示所有回滚点）。基于现有 fileHistory 快照基础设施构建。
+
 ## [1.5.7] - 2026-04-21
 
 ### Features

@@ -4,12 +4,12 @@
 
 **An AI-powered terminal programming assistant, supercharged.**
 
-[![version](https://img.shields.io/badge/version-1.5.7-blue)](./CHANGELOG.md)
+[![version](https://img.shields.io/badge/version-1.8.0-blue)](./CHANGELOG.md)
 [![platforms](https://img.shields.io/badge/platforms-macOS%20%7C%20Linux%20%7C%20Windows-brightgreen)](#platform-support)
 [![license](https://img.shields.io/badge/license-MIT-yellow)](./LICENSE)
 [![Claude Code](https://img.shields.io/badge/based%20on-Claude%20Code-blueviolet)](https://github.com/anthropics/claude-code)
 
-🌐 [中文文档](./README.zh-CN.md) · 📊 [vs Claude Code](./COMPARISON.md) · 📋 [Changelog](./CHANGELOG.md)
+🌐 [中文文档](./README.zh-CN.md) · 📊 [vs Claude Code](./COMPARISON.md) · 📊 [vs Codex](./COMPARISON-CODEX.md) · 📋 [Changelog](./CHANGELOG.md)
 
 <img width="855" height="319" alt="image" src="https://github.com/user-attachments/assets/02c7ba2f-4ef7-4799-8e3c-b469279c44e8" />
 
@@ -34,6 +34,11 @@ LegnaCode is built on top of [Claude Code CLI](https://github.com/anthropics/cla
 
 | Version | Summary |
 |---------|---------|
+| **1.8.0** | Codex full compat: plugin adapter + marketplace, skills discovery, config interop; TS/Python SDK; TTS + WebRTC voice |
+| **1.6.1** | Rust NAPI addon (cosine/tfidf/hash/tokens); kernel sandbox (Seatbelt/seccomp); two-pass wake-up; keyword-density L1 |
+| **1.6.0** | Collaboration modes (`/mode`); JS REPL bridge; JSON-RPC app-server; agent config migration (`/migrate`) |
+| **1.5.9** | Guardian sub-agent; shell escalation protocol; network policy agent |
+| **1.5.8** | Process hardening; exec policy engine; secret detector; rollback implementation |
 | **1.5.7** | Git-style `/fork` command: fork from any message (`@N`), list branches, switch between forks |
 | **1.5.6** | WebUI SSE timeout fix (255s max); controller double-close crash fix |
 | **1.5.4** | Republish with all platform binaries in sync |

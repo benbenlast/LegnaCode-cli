@@ -1,0 +1,7 @@
+[workspace]
+members = ["sandbox", "file-search", "apply-patch"]
+resolver = "2"
+
+[workspace.dependencies]
+napi = { version = "2", features = ["napi8"] }
+napi-derive = "2"

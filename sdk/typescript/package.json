@@ -1,0 +1,29 @@
+{
+  "name": "@legna/legnacode-sdk",
+  "version": "1.0.0",
+  "description": "TypeScript SDK for LegnaCode — programmatic access to the LegnaCode CLI",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": ["legnacode", "codex", "ai", "coding", "sdk"],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}

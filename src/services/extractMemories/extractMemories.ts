@@ -56,6 +56,7 @@ import {
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../analytics/growthbook.js'
 import { logEvent } from '../analytics/index.js'
 import { sanitizeToolNameForAnalytics } from '../analytics/metadata.js'
+import { redactSecrets } from '../../security/secretDetector.js'
 import {
   buildExtractAutoOnlyPrompt,
   buildExtractCombinedPrompt,
@@ -210,7 +211,15 @@ export function createAutoMemCanUseTool(memoryDir: string): CanUseToolFn {
     ) {
       const filePath = input.file_path
       if (typeof filePath === 'string' && isAutoMemPath(filePath)) {
-        return { behavior: 'allow' as const, updatedInput: input }
+        // Redact secrets before writing to memory files
+        const sanitizedInput = { ...input }
+        if (typeof sanitizedInput.content === 'string') {
+          sanitizedInput.content = redactSecrets(sanitizedInput.content)
+        }
+        if (typeof sanitizedInput.new_string === 'string') {
+          sanitizedInput.new_string = redactSecrets(sanitizedInput.new_string)
+        }
+        return { behavior: 'allow' as const, updatedInput: sanitizedInput }
       }
     }
 

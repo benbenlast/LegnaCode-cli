@@ -11,6 +11,8 @@ import {
   setCwdState,
 } from '../bootstrap/state.js'
 import { generateTaskId } from '../Task.js'
+import { hasNativeSandbox } from '../native/index.js'
+import { sandboxExec, type SandboxExecOptions } from '../native/sandboxBinding.js'
 import { pwd } from './cwd.js'
 import { logForDebugging } from './debug.js'
 import { errorMessage, isENOENT } from './errors.js'
@@ -277,6 +279,41 @@ export async function exec(
     ? ['-c', commandString]
     : provider.getSpawnArgs(commandString)
   const envOverrides = await provider.getEnvironmentOverrides(command)
+
+  // Native kernel-level sandbox fast path: if wrapWithSandbox() returned a
+  // marker string, extract the options and original command, then execute
+  // via the Rust NAPI addon which applies OS-level isolation (landlock /
+  // pledge / seatbelt) directly — bypassing the child_process spawn path.
+  const NATIVE_SANDBOX_MARKER = '__LEGNA_NATIVE_SANDBOX__'
+  if (hasNativeSandbox && commandString.startsWith(NATIVE_SANDBOX_MARKER + ':')) {
+    const firstColon = commandString.indexOf(':', NATIVE_SANDBOX_MARKER.length + 1)
+    const optsB64 = commandString.slice(NATIVE_SANDBOX_MARKER.length + 1, firstColon)
+    const realCommand = commandString.slice(firstColon + 1)
+    const nativeOpts: SandboxExecOptions = JSON.parse(
+      Buffer.from(optsB64, 'base64').toString('utf-8'),
+    )
+    const taskId = generateTaskId('native_sandbox')
+    const taskOutput = new TaskOutput(taskId, onProgress ?? null, true)
+    await mkdir(getTaskOutputDir(), { recursive: true })
+
+    try {
+      const result = await sandboxExec(realCommand, nativeOpts)
+      taskOutput.write(result.stdout + result.stderr)
+      return {
+        exitCode: result.exitCode,
+        stdout: result.stdout,
+        stderr: result.stderr,
+        interrupted: false,
+        taskId,
+        taskOutput,
+      }
+    } catch (e: unknown) {
+      // Fallback: if native sandbox fails, continue to normal spawn path
+      logForDebugging(`Native sandbox exec failed, falling back: ${e}`)
+      // Restore the original command for the fallback path
+      commandString = realCommand
+    }
+  }
 
   // When onStdout is provided, use pipe mode: stdout flows through
   // StreamWrapper → TaskOutput in-memory buffer instead of a file fd.

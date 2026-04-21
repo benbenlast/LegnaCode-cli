@@ -16,6 +16,7 @@ import { getSettings_DEPRECATED } from '../../utils/settings/settings.js'
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
 import { isPreapprovedHost } from './preapproved.js'
 import { makeSecondaryModelPrompt } from './prompt.js'
+import { NetworkPolicyEnforcer } from '../../security/networkPolicy/policyEnforcer.js'
 
 // Custom error classes for domain blocking
 class DomainBlockedError extends Error {
@@ -395,6 +396,18 @@ export async function getURLMarkdownContent(
         case 'check_failed':
           throw new DomainCheckFailedError(hostname)
       }
+    }
+
+    // Network policy check (exec policy layer — domain allowlist/denylist)
+    try {
+      const enforcer = NetworkPolicyEnforcer.getInstance()
+      const policyCheck = enforcer.checkRequest(upgradedUrl, 'GET')
+      if (!policyCheck.allowed) {
+        throw new DomainBlockedError(hostname)
+      }
+    } catch (e) {
+      if (e instanceof DomainBlockedError) throw e
+      // Network policy is best-effort — continue if enforcer fails
     }
 
     if (process.env.USER_TYPE === 'ant') {

@@ -56,6 +56,10 @@ async function main(): Promise<void> {
     return;
   }
 
+  // Process hardening — strip dangerous env vars, disable core dumps, detect ptrace
+  const { hardenProcess } = await import('../security/processHardening.js');
+  hardenProcess();
+
   // For all other paths, load the startup profiler
   const {
     profileCheckpoint

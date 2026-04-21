@@ -4,6 +4,87 @@
 
 All notable changes to LegnaCode CLI will be documented in this file.
 
+## [1.8.0] - 2026-04-21
+
+> Codex Full Fusion Release — 5-phase integration of OpenAI Codex CLI capabilities into LegnaCode.
+
+### Security (Phase 1 + Phase 2)
+
+- **Process Hardening** — Disable core dumps, detect ptrace attachment, sanitize dangerous env vars (`LD_PRELOAD`, `DYLD_INSERT_LIBRARIES`, `NODE_OPTIONS` injection).
+- **Static Exec Policy Engine** — TOML-based command execution rules (`prefix`/`glob`/`regex` matching). Built-in defaults block destructive commands (`rm -rf /`, `mkfs`), prompt for package installs, allow read-only operations. Evaluated before LLM classifier — `forbidden` → instant deny, `allow` → instant pass, `prompt` → existing approval flow.
+- **Secret Detector** — Regex pattern library for AWS keys, GitHub tokens, JWTs, Slack tokens, private keys, generic API keys. Auto-redaction in memory pipeline (`[REDACTED:type]`).
+- **Rollback** — Full implementation with timeline scanning, `--dry-run` preview, `--safe` backup branch creation.
+- **Guardian Sub-Agent** — Dedicated tool call risk assessment with 6-category taxonomy (data_exfiltration, credential_probing, security_weakening, destructive_action, privilege_escalation, supply_chain). Rule-based pre-classification (30+ patterns), compact transcript builder (<2000 tokens), fail-closed design.
+- **Shell Escalation Protocol** — Three-tier execution: `sandbox` (restricted), `escalate` (user confirm), `deny` (refuse). Platform-aware wrapping: macOS Seatbelt, Linux bubblewrap, fallback `unshare --net`.
+- **Network Policy Agent** — Domain-level access control with `full`/`limited`/`blocked` modes, wildcard patterns, denylist priority, JSONL audit log.
+
+### Performance (Phase 4)
+
+- **Rust Native NAPI Addon** — `cosine_similarity` (SIMD f32), `tfidf_vectorize` (Rayon parallel), `content_hash` (SHA-256 streaming), `estimate_tokens` (branchless CJK-aware). ~10-50x speedup with automatic TS fallback.
+- **Kernel-Level Sandbox** — Seatbelt via `sandbox_init()` (macOS), seccomp-bpf via `prctl` (Linux). No external dependency (`sandbox-exec`/`bwrap`).
+- **Two-Pass Wake-Up** — Greedy L1 fill + L0 backfill for maximum depth and coverage within token budget.
+- **Keyword-Density L1** — Sentence ranking by `(keyword_ratio × √keyword_count)` replaces naive first-3-sentences.
+- **Token ROI Ranking** — Memories ranked by recall-to-cost ratio; compact frequently-recalled memories outrank verbose one-shot memories.
+
+### Features (Phase 3 + Phase 5)
+
+- **Collaboration Mode System** — Templated `.md` modes with YAML frontmatter. Built-in: `default`, `plan`, `execute`, `pair`. Three-tier loading (built-in → user → project). `/mode` command for runtime switching.
+- **JS REPL Bridge** — Public `legnacode` object in REPL scope: `tool()`, `readFile()`, `exec()`, `glob()`, `grep()`, `emitImage()`.
+- **App-Server JSON-RPC** — Full JSON-RPC 2.0 with 7 method groups (`thread/*`, `turn/*`, `fs/*`, `config/*`, `mcpServer/*`, `model/*`, `skills/*`). Streaming notifications. stdio + WebSocket transports.
+- **Agent Config Migration** — `/migrate` detects Codex, Cursor, Copilot, Windsurf, Aider, Continue. Imports config, MCP servers, rules.
+- **Codex Plugin Compatibility** — Adapter for `codex-plugin.json` manifests. Marketplace registry fetcher with cache. Installation + auth policy engines. Integrated into plugin loader (CWD auto-scan) and marketplace browser.
+- **Codex Skills Compatibility** — Auto-discovery of `~/.codex/skills/`. Frontmatter normalizer (`triggers` → `when_to_use`, `tools` → `allowed-tools`, `invoke` → `argument-hint`).
+- **Codex Config Interoperability** — Bidirectional `~/.codex/config.toml` mapping. Auto-import as lowest-priority settings base.
+- **TypeScript SDK** (`@legna/legnacode-sdk`) — `LegnaCode` client, `Thread` class, stdio/WebSocket transports, structured output. `Codex` alias.
+- **Python SDK** (`legnacode-sdk`) — Async client, Thread, JSON-RPC transport, dataclass types. `Codex` alias.
+- **TTS Voice Output** — Native backend (macOS `say`, Linux `espeak`). Streaming queue. Graceful degradation.
+- **WebRTC Voice Transport** — Bidirectional audio via WebRTC. Signalling, ICE exchange, peer connection. Stub fallback.
+
+## [1.6.1] - 2026-04-24
+
+### Performance
+
+- **Rust Native NAPI Addon** — Core hot-path operations rewritten in Rust via `napi-rs`. `cosine_similarity` (SIMD-accelerated f32 dot product), `tfidf_vectorize` (parallel TF-IDF with Rayon), `content_hash` (SHA-256 with streaming), and `estimate_tokens` (branchless CJK-aware counting). TypeScript bindings with automatic fallback to pure-TS implementations when the native module is unavailable. ~10-50x speedup on vector operations.
+
+### Security
+
+- **Kernel-Level Sandbox Integration** — Rust-native sandbox profiles replace shell-exec wrappers. macOS: Seatbelt profile compiled in-process via `sandbox_init()` (no `sandbox-exec` child process). Linux: direct `prctl` seccomp-bpf syscall filter (no `bwrap`/`unshare` dependency). Platform capability detection with graceful degradation. `SandboxNative` class with `applySeatbelt()` / `applySeccomp()` / `detect()` API.
+
+### Improvements
+
+- **Two-Pass Wake-Up Filling** — `LayeredStack.wakeUp()` now uses a two-pass strategy: Pass 1 greedily fills with L1 summaries (richer context), Pass 2 backfills remaining budget with L0 summaries from skipped drawers. Maximizes both depth and coverage within the same token budget.
+- **Keyword-Density L1 Generation** — `generateL1()` replaced naive "first 3 sentences" with keyword-density scoring. Sentences ranked by `(keyword_ratio × √keyword_count)`, first sentence always anchored for context, top-density sentences greedily packed into 400 chars, re-sorted by original position for coherent reading.
+- **Token ROI Ranking** — `topByImportance()` and `search()` now factor in token ROI: memories with high recall-to-cost ratio are boosted. A compact memory recalled frequently outranks a verbose memory recalled once. Content-hash index added for faster dedup lookups.
+
+## [1.6.0] - 2026-04-23
+
+### Features
+
+- **Collaboration Mode System** — Templated collaboration modes with YAML frontmatter `.md` files. Three-tier loading: built-in (`src/services/collaborationModes/templates/`), user-level (`~/.legnacode/modes/`), project-level (`.legnacode/modes/`). Later tiers override earlier by mode ID. Modes control system prompt injection, tool restrictions (allow/deny lists), and behavior flags (`readOnly`, `autoExecute`, `stepByStep`, `requirePlan`). Ships with four built-in modes: `default`, `plan`, `execute`, `pair`. New `/mode` slash command for listing and switching modes at runtime.
+- **JS REPL Bridge** — Public `legnacode` object injected into the JavaScript REPL global scope. Provides `tool()` for calling any LegnaCode tool by name, `readFile()`, `exec()`, `glob()`, `grep()` shortcuts, and `emitImage()` for rendering base64/Buffer/file-path images. Enables scripting LegnaCode capabilities from within REPL sessions.
+- **App-Server JSON-RPC Layer** — Full JSON-RPC 2.0 infrastructure for IDE integration. Router with method registration and dispatch. Seven method groups: `thread/*` (session lifecycle, fork, rollback, compact), `turn/*` (message send, steer, interrupt), `fs/*` (read/write/metadata), `config/*` (read/write/batch), `mcpServer/*` (status, resource, tool call), `model/list`, `skills/list` + `collaborationMode/list`. Streaming notifier pushes `item/*`, `turn/*`, `agentMessage/delta` notifications. Two transports: stdio (JSONL) and WebSocket (with heartbeat keepalive). Standalone entrypoint via `legnacode app-server --transport stdio|websocket`.
+- **External Agent Config Migration** — Detect and import configurations from other AI coding tools. Detectors for Codex, Cursor, GitHub Copilot, Windsurf, Aider, and Continue. Importers for Codex (TOML/JSON config → model + MCP servers), Cursor (settings.json → MCP servers + `.cursorrules` → `LEGNACODE.md`), and Copilot (`copilot-instructions.md` → `LEGNACODE.md`). Integrated into `/migrate --agents` flag and available standalone. Supports `--dry-run` preview and `--force` overwrite.
+
+## [1.5.9] - 2026-04-22
+
+### Security
+
+- **Guardian Sub-Agent** — Dedicated approval agent for tool call risk assessment. Six-category risk taxonomy (data_exfiltration, credential_probing, security_weakening, destructive_action, privilege_escalation, supply_chain). Rule-based fast pre-classification with 30+ signal patterns. Compact transcript builder compresses conversation history to <2000 tokens for context. Fail-closed design: timeout/error/malformed response → deny. Structured JSON assessment output. Configurable via `guardian` settings field.
+- **Shell Escalation Protocol** — Three-tier per-command execution decision: `sandbox` (restricted environment), `escalate` (user confirmation required), `deny` (refuse). Platform-aware sandbox wrapping: macOS Seatbelt (`sandbox-exec`), Linux bubblewrap (`bwrap`), Linux fallback (`unshare --net`). Integrates execPolicy + Guardian pre-classification for decision making. Detects commands needing external write access or network.
+- **Network Policy Agent** — Domain-level network access control for all outbound requests. Three modes: `full` (unrestricted), `limited` (GET/HEAD/OPTIONS only), `blocked` (deny all). Wildcard domain patterns (`*.example.com`). Denylist takes precedence over allowlist. JSONL audit logging to `~/.legnacode/logs/network-audit.jsonl`. Configurable via `~/.legnacode/network-policy.toml`.
+
+## [1.5.8] - 2026-04-22
+
+### Security
+
+- **Process Hardening** — Startup module inspired by Codex's `process-hardening`. Strips dangerous environment variables (`LD_PRELOAD`, `DYLD_INSERT_LIBRARIES`, `ELECTRON_RUN_AS_NODE`), sanitizes `NODE_OPTIONS` (removes `--require`/`--loader` injection flags), disables core dumps on Linux, and detects ptrace attachment.
+- **Static Execution Policy Engine** — Rule-based command evaluation before shell execution. Supports prefix, glob, regex, and host_executable matchers. Ships with built-in defaults (forbids `rm -rf /`, pipe-to-shell, fork bombs; prompts for package installs and `sudo`; allows read-only git/file ops). User-configurable via `.legnacode/exec-policy.toml` (project) or `~/.legnacode/exec-policy.toml` (global). Codex-compatible function-call syntax supported.
+- **Secret Detection & Redaction** — Pattern-based detector for 25+ secret types (AWS keys, GitHub PATs, Stripe keys, OpenAI/Anthropic API keys, JWTs, private keys, database URLs, etc.). Integrated into the auto-memory write pipeline — secrets are replaced with `[REDACTED:type]` before persisting to `.legna/memory/`.
+
+### Features
+
+- **Rollback CLI** — Full implementation of the rollback command. Lists checkpoint history, resolves targets by index or message-ID prefix, supports `--dry-run` (preview changes), `--safe` (creates git backup branch before restoring), and `--list` (show all rollback points). Built on the existing fileHistory snapshot infrastructure.
+
 ## [1.5.7] - 2026-04-21
 
 ### Features

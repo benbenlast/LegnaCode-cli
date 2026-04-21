@@ -63,6 +63,8 @@ import { isRestrictedToPluginOnly } from '../utils/settings/pluginOnlyPolicy.js'
 import { HooksSchema, type HooksSettings } from '../utils/settings/types.js'
 import { createSignal } from '../utils/signal.js'
 import { registerMCPSkillBuilders } from './mcpSkillBuilders.js'
+import { getCodexSkillsDir } from './codexSkillDiscovery.js'
+import { normaliseCodexFrontmatter } from './codexSkillAdapter.js'
 
 export type LoadedFrom =
   | 'commands_DEPRECATED'
@@ -444,10 +446,12 @@ async function loadSkillsFromSkillsDir(
           return null
         }
 
-        const { frontmatter, content: markdownContent } = parseFrontmatter(
+        const { frontmatter: rawFrontmatter, content: markdownContent } = parseFrontmatter(
           content,
           skillFilePath,
         )
+        // Normalise Codex-style frontmatter fields (triggers→when_to_use, etc.)
+        const frontmatter = normaliseCodexFrontmatter(rawFrontmatter)
 
         const skillName = entry.name
         const parsed = parseSkillFrontmatterFields(
@@ -682,6 +686,7 @@ export const getSkillDirCommands = memoize(
       projectSkillsNested,
       additionalSkillsNested,
       legacyCommands,
+      codexSkillsResult,
     ] = await Promise.all([
       isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_POLICY_SKILLS)
         ? Promise.resolve([])
@@ -711,6 +716,12 @@ export const getSkillDirCommands = memoize(
       // here when skills are locked — these ARE skills, regardless of the
       // directory they load from.
       skillsLocked ? Promise.resolve([]) : loadSkillsFromCommandsDir(cwd),
+      // Codex compat: scan ~/.codex/skills/ if it exists (best-effort)
+      !skillsLocked
+        ? getCodexSkillsDir().then(dir =>
+            dir ? loadSkillsFromSkillsDir(dir, 'userSettings') : [],
+          )
+        : Promise.resolve([]),
     ])
 
     // Flatten and combine all skills
@@ -720,6 +731,7 @@ export const getSkillDirCommands = memoize(
       ...projectSkillsNested.flat(),
       ...additionalSkillsNested.flat(),
       ...legacyCommands,
+      ...codexSkillsResult,
     ]
 
     // Deduplicate by resolved path (handles symlinks and duplicate parent directories)

@@ -11,6 +11,7 @@ import { shouldUseSandbox } from '../../tools/BashTool/shouldUseSandbox.js'
 import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
 import { POWERSHELL_TOOL_NAME } from '../../tools/PowerShellTool/toolName.js'
 import { REPL_TOOL_NAME } from '../../tools/REPLTool/constants.js'
+import { ExecPolicyEngine } from '../../security/execPolicy/engine.js'
 import type { AssistantMessage } from '../../types/message.js'
 import { extractOutputRedirections } from '../bash/commands.js'
 import { logForDebugging } from '../debug.js'
@@ -1165,6 +1166,32 @@ async function hasPermissionsToUseToolInner(
   }
 
   let appState = context.getAppState()
+
+  // 0. Static exec policy check (before any LLM classification)
+  // For Bash/PowerShell tools, evaluate the command against the static policy engine.
+  // forbidden → instant deny, allow → skip to step 2, prompt → continue normal flow.
+  if (tool.name === BASH_TOOL_NAME || tool.name === POWERSHELL_TOOL_NAME) {
+    const command = input.command as string | undefined
+    if (command) {
+      try {
+        const engine = ExecPolicyEngine.getInstance()
+        const decision = engine.evaluate(command)
+        if (decision === 'forbidden') {
+          return {
+            behavior: 'deny',
+            decisionReason: { type: 'prefix_match' as any },
+            message: `Command blocked by exec policy: ${command.slice(0, 80)}`,
+          }
+        }
+        if (decision === 'allow') {
+          return { behavior: 'allow', decisionReason: { type: 'prefix_match' as any } }
+        }
+        // 'prompt' → fall through to normal approval flow
+      } catch {
+        // exec policy engine failure is non-fatal — continue normal flow
+      }
+    }
+  }
 
   // 1. Check if the tool is denied
   // 1a. Entire tool is denied

@@ -1,0 +1,17 @@
+[package]
+name = "legnacode-file-search"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+napi = { workspace = true }
+napi-derive = { workspace = true }
+ignore = "0.4"
+nucleo-matcher = "0.3"
+serde = { version = "1", features = ["derive"] }
+
+[build-dependencies]
+napi-build = "2"

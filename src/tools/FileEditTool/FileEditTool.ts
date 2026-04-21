@@ -75,6 +75,7 @@ import {
   getPatchForEdit,
   preserveQuoteStyle,
 } from './utils.js'
+import { nativeApplyPatch } from '../../native/applyPatchBinding.js'
 
 // V8/Bun string length limit is ~2^30 characters (~1 billion). For typical
 // ASCII/Latin-1 files, 1 byte on disk = 1 character, so 1 GiB in stat bytes

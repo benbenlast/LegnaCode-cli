@@ -7,7 +7,7 @@ import { Database } from 'bun:sqlite'
 import { createHash } from 'crypto'
 import { mkdirSync, existsSync, statSync } from 'fs'
 import { dirname } from 'path'
-import { TfidfVectorizer, cosineSimilarity } from './tfidfVectorizer.js'
+import { TfidfVectorizer, cosineSimilarity, type TfidfVector } from './tfidfVectorizer.js'
 import { generateL0, generateL1, estimateTokens } from './contentTiering.js'
 import type {
   Drawer, SearchResult, SearchOptions, WalEntry, StoreStats, MetadataFilter,
@@ -25,6 +25,8 @@ export class DrawerStore {
   private db: Database
   private vectorizer: TfidfVectorizer
   private dirty = false
+  /** Pre-computed TF-IDF vectors keyed by drawer ID — avoids re-vectorizing on every search. */
+  private vecCache = new Map<string, TfidfVector>()
 
   constructor(dbPath: string) {
     const dir = dirname(dbPath)
@@ -93,6 +95,9 @@ export class DrawerStore {
       CREATE INDEX IF NOT EXISTS idx_drawers_importance ON drawers(importance DESC)
     `)
     this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_drawers_content_hash ON drawers(content_hash)
+    `)
+    this.db.exec(`
       CREATE TABLE IF NOT EXISTS wal (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         operation TEXT NOT NULL,
@@ -110,17 +115,22 @@ export class DrawerStore {
     `)
   }
 
-  /** Rebuild TF-IDF vectorizer from all stored drawers. */
+  /** Rebuild TF-IDF vectorizer from all stored drawers and pre-compute vector cache. */
   private rebuildVectorizer(): void {
-    const rows = this.db.query('SELECT content FROM drawers').all() as { content: string }[]
+    const rows = this.db.query('SELECT id, content FROM drawers').all() as { id: string; content: string }[]
     if (rows.length === 0) return
     this.vectorizer.fit(rows.map(r => r.content))
+    // Pre-compute and cache all document vectors
+    this.vecCache.clear()
+    for (const row of rows) {
+      this.vecCache.set(row.id, this.vectorizer.vectorize(row.content))
+    }
     // Cache the IDF model
     this.db.query('INSERT OR REPLACE INTO idf_cache (key, value) VALUES (?, ?)')
       .run('idf_model', JSON.stringify(this.vectorizer.serialize()))
   }
 
-  /** Upsert a drawer. Idempotent — same ID overwrites. Auto-generates L0/L1 tiers. Content-hash dedup within 30s window. */
+  /** Upsert a drawer. Idempotent — same ID overwrites. Auto-generates L0/L1 tiers. Permanent content-hash dedup. */
   upsert(drawer: Drawer, agent = 'system'): void {
     const l0 = drawer.contentL0 || generateL0(drawer.content)
     const l1 = drawer.contentL1 || generateL1(drawer.content)
@@ -128,11 +138,13 @@ export class DrawerStore {
     const hash = createHash('sha256').update(`${drawer.wing}\0${drawer.room}\0${drawer.content}`).digest('hex').slice(0, 32)
     const dt = drawer.discoveryTokens || estimateTokens(drawer.content)
 
-    // Content-hash dedup: skip if same hash filed within 30 seconds
-    const recent = this.db.query(
-      `SELECT id FROM drawers WHERE content_hash = ? AND filed_at > datetime('now', '-30 seconds') LIMIT 1`
+    // Permanent content-hash dedup: skip if identical content already exists
+    // (regardless of timing). If the same ID is being updated with new content,
+    // allow the upsert to proceed.
+    const existing = this.db.query(
+      `SELECT id FROM drawers WHERE content_hash = ? LIMIT 1`
     ).get(hash) as any
-    if (recent) return
+    if (existing && existing.id !== drawer.id) return
 
     this.db.query(`
       INSERT OR REPLACE INTO drawers
@@ -147,8 +159,9 @@ export class DrawerStore {
     // WAL
     this.db.query('INSERT INTO wal (operation, drawer_id, timestamp, agent) VALUES (?, ?, ?, ?)')
       .run('insert', drawer.id, new Date().toISOString(), agent)
-    // Incremental IDF update
+    // Incremental IDF update + vector cache
     this.vectorizer.addDocument(drawer.content)
+    this.vecCache.set(drawer.id, this.vectorizer.vectorize(drawer.content))
     this.dirty = true
   }
 
@@ -165,6 +178,7 @@ export class DrawerStore {
   /** Delete a drawer by ID. */
   delete(id: string, agent = 'system'): void {
     this.db.query('DELETE FROM drawers WHERE id = ?').run(id)
+    this.vecCache.delete(id)
     this.db.query('INSERT INTO wal (operation, drawer_id, timestamp, agent) VALUES (?, ?, ?, ?)')
       .run('delete', id, new Date().toISOString(), agent)
   }
@@ -175,7 +189,8 @@ export class DrawerStore {
     return row ? this.rowToDrawer(row) : null
   }
 
-  /** Search drawers by vector similarity with optional metadata filtering. */
+  /** Search drawers by vector similarity with optional metadata filtering.
+   *  Uses pre-computed vector cache for O(1) per-document lookup instead of re-vectorizing. */
   search(query: string, opts: SearchOptions = {}): SearchResult[] {
     const topK = opts.topK ?? 10
     const minSim = opts.minSimilarity ?? 0.3
@@ -192,19 +207,25 @@ export class DrawerStore {
 
     if (rows.length === 0) return []
 
-    // Vectorize query
+    // Vectorize query (only the query — document vectors are pre-cached)
     const queryVec = this.vectorizer.vectorize(query)
 
-    // Score each candidate with time decay
+    // Score each candidate: cached vector lookup + time decay + token ROI
     const now = Date.now()
     const results: SearchResult[] = []
     for (const row of rows) {
-      const docVec = this.vectorizer.vectorize(row.content)
+      // Use cached vector; fallback to on-the-fly vectorization if cache miss
+      const docVec = this.vecCache.get(row.id) ?? this.vectorizer.vectorize(row.content)
       const sim = cosineSimilarity(queryVec, docVec)
       // 90-day time decay: max(0.3, 1.0 - age_days/90)
       const ageDays = (now - new Date(row.filed_at).getTime()) / 86400000
       const decay = Math.max(0.3, 1.0 - ageDays / 90)
-      const effectiveSim = sim * decay
+      // Token ROI boost: memories that have been recalled often relative to their
+      // discovery cost are more "proven useful". roi = relevance_count / max(1, discovery_tokens/100)
+      const relCount = row.relevance_count ?? 0
+      const discTokens = row.discovery_tokens ?? 100
+      const roiBoost = 1 + 0.05 * Math.min(relCount / Math.max(1, discTokens / 100), 20)
+      const effectiveSim = sim * decay * roiBoost
       if (effectiveSim >= minSim) {
         results.push({ drawer: this.rowToDrawer(row), similarity: effectiveSim })
       }
@@ -227,20 +248,28 @@ export class DrawerStore {
     return topResults
   }
 
-  /** Get top drawers by effective importance (with time decay + relevance boost). */
+  /** Get top drawers by effective importance (with time decay + relevance boost + token ROI). */
   topByImportance(limit = 15, wing?: string): Drawer[] {
     const sql = wing
       ? 'SELECT * FROM drawers WHERE wing = ?'
       : 'SELECT * FROM drawers'
     const rows = (wing ? this.db.query(sql).all(wing) : this.db.query(sql).all()) as any[]
 
-    // Score with time decay + relevance feedback
+    // Score with time decay + relevance feedback + token ROI
     const now = Date.now()
     const scored = rows.map(row => {
       const ageDays = (now - new Date(row.filed_at).getTime()) / 86400000
       const decay = Math.max(0.3, 1.0 - ageDays / 90)
-      const relevanceBoost = 1 + 0.1 * Math.min(row.relevance_count ?? 0, 10)
-      const effective = (row.importance ?? 0.5) * decay * relevanceBoost
+      // Relevance boost: capped at 20 recalls (was 10)
+      const relevanceBoost = 1 + 0.1 * Math.min(row.relevance_count ?? 0, 20)
+      // Token ROI: memories with high recall-to-cost ratio are more valuable.
+      // roi = relevance_count / max(1, token_cost / 100)
+      // A 50-token memory recalled 10 times is more valuable than a 500-token memory recalled once.
+      const tokenCost = row.token_cost ?? 100
+      const relCount = row.relevance_count ?? 0
+      const roi = relCount / Math.max(1, tokenCost / 100)
+      const roiFactor = 1 + 0.03 * Math.min(roi, 30)
+      const effective = (row.importance ?? 0.5) * decay * relevanceBoost * roiFactor
       return { row, effective }
     })
     scored.sort((a, b) => b.effective - a.effective)
@@ -280,9 +309,10 @@ export class DrawerStore {
     return this.db.query('SELECT * FROM wal ORDER BY id DESC LIMIT ?').all(limit) as WalEntry[]
   }
 
-  /** Close the database. */
+  /** Close the database and release caches. */
   close(): void {
     if (this.dirty) this.rebuildVectorizer()
+    this.vecCache.clear()
     this.db.close()
   }
 
