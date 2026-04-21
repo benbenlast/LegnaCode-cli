@@ -308,6 +308,7 @@ export const SYNTHETIC_MESSAGES = new Set([
 ])
 
 export function isSyntheticMessage(message: Message): boolean {
+  if (!message) return false
   return (
     message.type !== 'progress' &&
     message.type !== 'attachment' &&
@@ -321,6 +322,7 @@ export function isSyntheticMessage(message: Message): boolean {
 function isSyntheticApiErrorMessage(
   message: Message,
 ): message is AssistantMessage & { isApiErrorMessage: true } {
+  if (!message) return false
   return (
     message.type === 'assistant' &&
     message.isApiErrorMessage === true &&
@@ -687,6 +689,7 @@ export function extractTag(html: string, tagName: string): string | null {
 }
 
 export function isNotEmptyMessage(message: Message): boolean {
+  if (!message) return false
   if (
     message.type === 'progress' ||
     message.type === 'attachment' ||
@@ -746,7 +749,7 @@ export function normalizeMessages(messages: Message[]): NormalizedMessage[] {
   // This flag is set to true once we encounter a message with multiple content blocks,
   // and remains true for all subsequent messages in the normalization process.
   let isNewChain = false
-  return messages.flatMap(message => {
+  return messages.filter(Boolean).flatMap(message => {
     switch (message.type) {
       case 'assistant': {
         isNewChain = isNewChain || message.message.content.length > 1
@@ -829,6 +832,7 @@ type ToolUseRequestMessage = NormalizedAssistantMessage & {
 export function isToolUseRequestMessage(
   message: Message,
 ): message is ToolUseRequestMessage {
+  if (!message) return false
   return (
     message.type === 'assistant' &&
     // Note: stop_reason === 'tool_use' is unreliable -- it's not always set correctly
@@ -843,6 +847,7 @@ type ToolUseResultMessage = NormalizedUserMessage & {
 export function isToolUseResultMessage(
   message: Message,
 ): message is ToolUseResultMessage {
+  if (!message) return false
   return (
     message.type === 'user' &&
     ((Array.isArray(message.message.content) &&
@@ -878,7 +883,7 @@ export function reorderMessagesInUI(
   >()
 
   // First pass: group messages by tool use ID
-  for (const message of messages) {
+  for (const message of messages.filter(Boolean)) {
     // Handle tool use messages
     if (isToolUseRequestMessage(message)) {
       const toolUseID = message.message.content[0]?.id
@@ -1028,6 +1033,7 @@ export function reorderMessagesInUI(
 function isHookAttachmentMessage(
   message: Message,
 ): message is AttachmentMessage<HookAttachment> {
+  if (!message) return false
   return (
     message.type === 'attachment' &&
     (message.attachment.type === 'hook_blocking_error' ||
@@ -1529,6 +1535,7 @@ export function reorderAttachmentsForAPI(messages: Message[]): Message[] {
 export function isSystemLocalCommandMessage(
   message: Message,
 ): message is SystemLocalCommandMessage {
+  if (!message) return false
   return message.type === 'system' && message.subtype === 'local_command'
 }
 
@@ -2843,6 +2850,7 @@ export function filterUnresolvedToolUses(messages: Message[]): Message[] {
 }
 
 export function getAssistantMessageText(message: Message): string | null {
+  if (!message) return null
   if (message.type !== 'assistant') {
     return null
   }
@@ -2863,6 +2871,7 @@ export function getAssistantMessageText(message: Message): string | null {
 export function getUserMessageText(
   message: Message | NormalizedMessage,
 ): string | null {
+  if (!message) return null
   if (message.type !== 'user') {
     return null
   }
@@ -4679,6 +4688,7 @@ export function shouldShowUserMessage(
 }
 
 export function isThinkingMessage(message: Message): boolean {
+  if (!message) return false
   if (message.type !== 'assistant') return false
   if (!Array.isArray(message.message.content)) return false
   return message.message.content.every(

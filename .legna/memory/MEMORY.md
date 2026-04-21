@@ -60,3 +60,7 @@ v1.3.0 起，新会话写入项目本地 `<project>/.legna/sessions/<uuid>.jsonl
 - `src/utils/envUtils.ts` — getClaudeConfigHomeDir() 直接返回 ~/.legna，runGlobalMigration() 单次迁移
 - `src/utils/ensureLegnaGitignored.ts` — 自动 gitignore
 - `src/commands/migrate/` — `legna migrate` CLI 命令
+
+## Feedback
+
+- [Exclude vendor directory](feedback_exclude_vendor.md) — 探索/分析代码库时始终跳过 vendor/
