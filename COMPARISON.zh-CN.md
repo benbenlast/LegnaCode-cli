@@ -25,7 +25,7 @@
 | OpenAI 兼容桥接器 | ❌ | ✅ 任何 `/v1/chat/completions` 端点（Ollama/vLLM/LM Studio） |
 | DeepSeek / Qwen / GLM / SiliconFlow | ❌ | ✅ 通过 OpenAI 兼容桥接 + 专用适配器 |
 | 智能模型路由 | ❌ | ✅ 按 prompt 复杂度自动选模型层 |
-| Model Adapter 架构 | 部分 | ✅ 7 个适配器（DeepSeek/GLM/Kimi/MiMo/MiniMax/OpenAI 兼容） |
+| Model Adapter 架构 | 部分 | ✅ 8 个适配器（DeepSeek/GLM/Kimi/MiMo/MiniMax/Qwen/OpenAI 兼容） |
 | 弱模型 JSON 修复 | ❌ | ✅ 修复 markdown 围栏、尾逗号、不平衡括号 |
 
 ## 多模态能力（MiniMax 模型专属）
@@ -82,7 +82,10 @@
 | 子 Agent 派生 | ✅ | ✅ |
 | 团队协作 | ✅ | ✅ |
 | RPC 子进程工具执行 | ❌ | ✅ UDS RPC，多步操作压缩为一次推理 |
-| 自主技能检测 | ❌ | ✅ 检测重复模式，提示保存为技能 |
+| 自主技能检测 | ❌ | ✅ 检测重复模式，自动创建 SKILL.md |
+| 自我进化闭环（Hermes） | ❌ | ✅ 自动学习纠正、偏好、模式并写入记忆 |
+| 后台审查 Agent | ❌ | ✅ 会话结束后自动提取经验到 `.legna/memory/` |
+| Nudge 系统 | ❌ | ✅ 计数器驱动的会话学习摘要 |
 | 工具 Schema 导出 | ❌ | ✅ Anthropic 兼容格式 |
 | 并行文件编辑模式 | ❌ | ✅ 每文件一个子代理 + 兄弟文件骨架 |
 | 代码图谱（符号索引） | ❌ | ✅ 正则提取，TS/JS/Python/Go/Rust，增量 mtime |
@@ -116,6 +119,8 @@
 |------|:-----------:|:---------:|
 | 全局配置目录 | `~/.claude/` | `~/.legna/`（自动迁移） |
 | WebUI 管理面板 | ❌ | ✅ `legna admin` |
+| WebUI 聊天查看器 | ❌ | ✅ 会话回放，支持思维链/工具调用可视化 |
+| WebUI 实时聊天 | ❌ | ✅ SSE 流式聊天，用于 API 连通性测试（仅单轮对话） |
 | 配置迁移工具 | ❌ | ✅ `legna migrate` |
 | MiniMax 认证 | ❌ | ✅ `/auth-minimax` |
 | 纯 TS 语法高亮 | ❌ 依赖原生模块 | ✅ 零原生依赖 |

@@ -2,6 +2,28 @@
 
 All notable changes to LegnaCode CLI will be documented in this file.
 
+## [1.5.3] - 2026-04-21
+
+### 新功能
+
+- **Hermes 自我进化闭环** — 自动学习闭环：重复工具模式（3 次）自动通过 LLM 生成 SKILL.md；行为纠正自动写入 `.legna/memory/`；无需用户确认。后台 Review Agent 在每次会话结束后自动提取经验洞察。
+- **Qwen 模型适配器** — Qwen 全系列专用适配器（qwen-plus、qwen-max、qwen-turbo、qwen-coder-plus、qwq-plus、qwen3-235b）。支持 `thinking_budget` 映射、DashScope 服务端搜索（`enable_search`）、`reasoning_content` 流式推理、`content_filter` 安全过滤。
+- **WebUI 聊天查看器** — 管理面板新增"聊天记录"页面。支持浏览会话历史、完整消息渲染、思维链折叠展开、工具调用可视化（输入/输出/错误）、自动滚动。后端新增 `/api/:scope/sessions/:id/messages` 端点读取 JSONL 会话文件。
+- **WebUI 实时聊天** — `legna admin` 管理面板新增实时聊天功能，通过 SSE 流式传输。支持发送消息、查看流式响应（含思维链/工具调用可视化）。注意：每条消息都是独立会话（不支持连续对话），仅用于快速测试 API 连通性，不作为完整聊天客户端使用。
+- **Skill 自动创建** — `SkillPatternDetector.record()` 此前已接入但结果从未展示。现在检测到重复模式后自动创建 skill 并事后通知用户。
+- **Skill 改进路径 B** — `skillImprovement` 不再限制于 skill 执行期间。通用对话学习每 10 条用户消息检测工作流偏好、行为纠正和编码风格偏好。
+- **Nudge 系统** — 计数器驱动的会话学习摘要。汇报已自动学到的内容（创建的 skill、捕获的纠正、记录的洞察），而非建议用户去学习。
+
+### 改进
+
+- **onPreCompress 增强** — 在现有 exchange pair 提取基础上新增工作状态提取。压缩前捕获当前任务、关键决策、文件路径和错误模式，高优先级写入 DrawerStore。
+- **Skill 版本备份** — `applySkillImprovement` 覆写前自动备份当前 SKILL.md 到 `.versions/` 目录，自动维护最近 20 个版本的 changelog。
+- **`/skillify` 解锁** — 移除 `USER_TYPE === 'ant'` 门控，所有用户均可将会话工作流捕获为可复用 skill。
+
+### Bug Fixes
+
+- **WebUI 内联脚本崩溃** — 修复内联 JavaScript 中未转义的 `</` 序列导致的 `Unexpected token '<'` 错误。JS 和 CSS 现在作为独立文件（`/__admin__/app.js`、`/__admin__/app.css`）提供，不再内联到 `<script>` 标签中。
+
 ## [1.5.2] - 2026-04-20
 
 ### Performance

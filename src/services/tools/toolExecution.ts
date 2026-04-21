@@ -5,6 +5,7 @@ import type {
   ToolUseBlock,
 } from '@anthropic-ai/sdk/resources/index.mjs'
 import { skillPatternDetector } from '../skillAutoCreate.js'
+import { tickToolCall } from '../hermes/nudgeSystem.js'
 import { checkToolLoop } from './toolIntelligence.js'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
@@ -356,6 +357,8 @@ export async function* runToolUse(
   }
   // Track tool call for skill auto-creation pattern detection
   skillPatternDetector.record(toolName)
+  // Track tool call for nudge system (learning reminders)
+  tickToolCall()
   // First try to find in the available tools (what the model sees)
   let tool = findToolByName(toolUseContext.options.tools, toolName)
 

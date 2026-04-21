@@ -27,7 +27,7 @@
 | OpenAI-compatible bridge | ❌ | ✅ Any `/v1/chat/completions` endpoint (Ollama/vLLM/LM Studio) |
 | DeepSeek / Qwen / GLM / SiliconFlow | ❌ | ✅ Via OpenAI-compat bridge + dedicated adapters |
 | Intelligent model routing | ❌ | ✅ Auto-selects model tier by prompt complexity |
-| Model Adapter architecture | Partial | ✅ 7 adapters (DeepSeek/GLM/Kimi/MiMo/MiniMax/OpenAI-compat) |
+| Model Adapter architecture | Partial | ✅ 8 adapters (DeepSeek/GLM/Kimi/MiMo/MiniMax/Qwen/OpenAI-compat) |
 | JSON repair for weak models | ❌ | ✅ Fixes markdown fences, trailing commas, unbalanced brackets |
 
 ## Multimodal (MiniMax-exclusive)
@@ -84,7 +84,10 @@
 | Sub-agent spawning | ✅ | ✅ |
 | Team collaboration | ✅ | ✅ |
 | RPC subprocess tool execution | ❌ | ✅ UDS RPC, compresses multi-step ops into one inference |
-| Autonomous skill detection | ❌ | ✅ Detects repeated patterns, prompts to save as skill |
+| Autonomous skill detection | ❌ | ✅ Detects repeated patterns, auto-creates SKILL.md |
+| Self-evolution loop (Hermes) | ❌ | ✅ Auto-learns corrections, preferences, patterns to memory |
+| Background Review Agent | ❌ | ✅ Post-session experience extraction to `.legna/memory/` |
+| Nudge system | ❌ | ✅ Counter-driven session learning summary |
 | Tool schema export | ❌ | ✅ Anthropic-compatible format |
 | Parallel file edit mode | ❌ | ✅ One sub-agent per file + sibling skeletons |
 | Code Graph (symbol index) | ❌ | ✅ Regex-based, TS/JS/Python/Go/Rust, incremental mtime |
@@ -118,6 +121,8 @@
 |---------|:-----------:|:---------:|
 | Global config directory | `~/.claude/` | `~/.legna/` (auto-migrated) |
 | WebUI admin panel | ❌ | ✅ `legna admin` |
+| WebUI chat viewer | ❌ | ✅ Session replay with thinking/tool call visualization |
+| WebUI live chat | ❌ | ✅ SSE streaming chat for API connectivity testing (single-turn only) |
 | Config migration tool | ❌ | ✅ `legna migrate` |
 | MiniMax authentication | ❌ | ✅ `/auth-minimax` |
 | Pure TS syntax highlighting | ❌ Requires native modules | ✅ Zero native dependencies |

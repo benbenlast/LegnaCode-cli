@@ -7,8 +7,10 @@
 
 import { readFileSync, writeFileSync, readdirSync, renameSync, copyFileSync, existsSync, mkdirSync } from 'fs'
 import { resolve, join, extname } from 'path'
-import { ADMIN_HTML } from './admin-ui-html.js'
+import { spawn, type ChildProcess } from 'child_process'
+import { ADMIN_HTML, ADMIN_JS, ADMIN_CSS } from './admin-ui-html.js'
 import { getClaudeConfigHomeDir } from '../utils/envUtils.js'
+import { isInBundledMode } from '../utils/bundledMode.js'
 
 type Scope = 'claude' | 'legna'
 
@@ -45,12 +47,23 @@ async function handleApi(req: Request, url: URL): Promise<Response> {
 
   // GET /api/version
   if (parts[0] === 'version' && method === 'GET') {
-    return json({ version: typeof MACRO !== 'undefined' ? MACRO.VERSION : '1.3.5' })
+    return json({ version: typeof MACRO !== 'undefined' ? MACRO.VERSION : '1.5.3' })
   }
 
   // POST /api/migrate
   if (parts[0] === 'migrate' && method === 'POST') {
     return handleMigrate(await req.json())
+  }
+
+  // POST /api/chat — live chat via SSE (must be before scope check)
+  if (parts[0] === 'chat' && method === 'POST' && parts.length === 1) {
+    const body = await req.json() as { message: string; cwd?: string; sessionId?: string }
+    return handleChatSSE(body.message, body.cwd, body.sessionId)
+  }
+
+  // POST /api/chat/abort
+  if (parts[0] === 'chat' && parts[1] === 'abort' && method === 'POST') {
+    return handleChatAbort()
   }
 
   // Scoped endpoints: /api/:scope/...
@@ -92,6 +105,12 @@ async function handleApi(req: Request, url: URL): Promise<Response> {
   if (sub === 'sessions' && method === 'GET') {
     const limit = parseInt(url.searchParams.get('limit') || '50', 10)
     return handleSessions(dir, scope, limit)
+  }
+
+  // GET /api/:scope/sessions/:id/messages — read full JSONL session for chat viewer
+  if (sub.startsWith('sessions/') && sub.endsWith('/messages') && method === 'GET') {
+    const sessionId = sub.replace('sessions/', '').replace('/messages', '')
+    return handleSessionMessages(dir, scope, sessionId)
   }
 
   return err('Not found', 404)
@@ -197,6 +216,77 @@ function buildResumeCommand(cwd: string, sessionId: string): string {
   return `${cd} && legna --resume ${sessionId}`
 }
 
+function handleSessionMessages(dir: string, scope: Scope, sessionId: string): Response {
+  // Search for the JSONL file across all project directories
+  const historyPath = join(dir, 'projects')
+  try {
+    const projects = readdirSync(historyPath)
+    for (const proj of projects) {
+      const filePath = join(historyPath, proj, `${sessionId}.jsonl`)
+      if (existsSync(filePath)) {
+        const raw = readFileSync(filePath, 'utf-8')
+        const lines = raw.trim().split('\n').filter(Boolean)
+        const messages: any[] = []
+        for (const line of lines) {
+          try {
+            const entry = JSON.parse(line)
+            // Normalize to UnifiedMessage-compatible format
+            const msg: any = {
+              uuid: entry.uuid || `${sessionId}-${messages.length}`,
+              type: entry.type || 'user',
+              timestamp: entry.timestamp || '',
+              message: entry.message || undefined,
+              toolCall: undefined,
+            }
+
+            // Extract tool_use blocks from assistant messages
+            if (entry.type === 'assistant' && entry.message?.content) {
+              const content = entry.message.content
+              if (Array.isArray(content)) {
+                const toolUse = content.find((b: any) => b.type === 'tool_use')
+                if (toolUse) {
+                  msg.type = 'assistant'
+                  msg.toolCall = {
+                    tool: toolUse.name,
+                    status: 'completed',
+                    input: toolUse.input,
+                    content: [],
+                  }
+                }
+                // Extract thinking blocks
+                const thinking = content.find((b: any) => b.type === 'thinking')
+                if (thinking && !toolUse) {
+                  msg.type = 'assistant'
+                  msg.thinking = thinking.thinking || thinking.text || ''
+                }
+              }
+            }
+
+            // Extract tool results
+            if (entry.type === 'tool_result') {
+              msg.type = 'tool_result'
+              msg.toolResult = {
+                tool_use_id: entry.tool_use_id,
+                content: entry.content,
+                is_error: entry.is_error || false,
+              }
+            }
+
+            messages.push(msg)
+          } catch {}
+        }
+        return json(messages)
+      }
+    }
+
+    // Also check project-local sessions: <cwd>/.legna/sessions/
+    // This is a best-effort search — we don't know the CWD here
+    return err('Session not found', 404)
+  } catch (e: any) {
+    return err(e.message, 500)
+  }
+}
+
 function handleMigrate(body: any): Response {
   const { from, to, fields } = body as { from: Scope; to: Scope; fields?: string[]; includeSessions?: boolean }
   if (!from || !to) return err('Missing from/to')
@@ -254,65 +344,255 @@ function copyDirRecursive(src: string, dst: string) {
   }
 }
 
+// ============================================================================
+// Live Chat via subprocess — spawn `legna -p` and stream stdout as SSE
+// ============================================================================
+
+let activeChatProcess: ChildProcess | null = null
+
+function handleChatSSE(message: string, cwd?: string, _sessionId?: string): Response {
+  // Kill any existing chat process
+  if (activeChatProcess) {
+    activeChatProcess.kill('SIGTERM')
+    activeChatProcess = null
+  }
+
+  // In bundled mode (compiled binary), process.execPath IS the binary.
+  // In dev mode (node/bun running script), need process.argv[0] + process.argv[1].
+  const bundled = isInBundledMode()
+  const binaryPath = bundled ? process.execPath : process.argv[0]!
+  const baseArgs = ['--print', '--output-format', 'stream-json', '--include-partial-messages']
+  const args = bundled ? baseArgs : [process.argv[1]!, ...baseArgs]
+
+  // Log spawn command for debugging
+  console.log(`  [chat] spawn: ${binaryPath} ${args.join(' ')}`)
+
+  const child = spawn(binaryPath, args, {
+    cwd: cwd || process.cwd(),
+    env: { ...process.env, NO_COLOR: '1' },
+    stdio: ['pipe', 'pipe', 'pipe'],
+  })
+  activeChatProcess = child
+
+  // Write message via stdin then close it
+  child.stdin?.write(message)
+  child.stdin?.end()
+
+  const stream = new ReadableStream({
+    start(controller) {
+      const encoder = new TextEncoder()
+
+      const sendEvent = (event: string, data: any) => {
+        controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`))
+      }
+
+      let buffer = ''
+
+      child.stdout?.on('data', (chunk: Buffer) => {
+        buffer += chunk.toString()
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+
+        for (const line of lines) {
+          if (!line.trim()) continue
+          try {
+            const parsed = JSON.parse(line)
+
+            if (parsed.type === 'partial') {
+              // Streaming partial message — extract latest text delta
+              const content = parsed.message?.content
+              if (Array.isArray(content)) {
+                const lastText = content.filter((b: any) => b.type === 'text').pop()
+                if (lastText?.text) {
+                  sendEvent('partial', { content: lastText.text })
+                }
+                const lastThinking = content.filter((b: any) => b.type === 'thinking').pop()
+                if (lastThinking?.thinking) {
+                  sendEvent('thinking_partial', { content: lastThinking.thinking })
+                }
+              }
+            } else if (parsed.type === 'assistant') {
+              // Complete assistant message — extract all blocks
+              const content = parsed.message?.content
+              if (Array.isArray(content)) {
+                for (const block of content) {
+                  if (block.type === 'text') {
+                    sendEvent('text', { content: block.text || '' })
+                  } else if (block.type === 'thinking') {
+                    sendEvent('thinking', { content: block.thinking || '' })
+                  } else if (block.type === 'tool_use') {
+                    sendEvent('tool_use', { name: block.name, input: block.input, id: block.id })
+                  }
+                }
+              }
+            } else if (parsed.type === 'user') {
+              const content = parsed.message?.content
+              if (Array.isArray(content)) {
+                for (const block of content) {
+                  if (block.type === 'tool_result') {
+                    sendEvent('tool_result', {
+                      tool_use_id: block.tool_use_id,
+                      content: block.content,
+                      is_error: block.is_error,
+                    })
+                  }
+                }
+              }
+            } else if (parsed.type === 'result') {
+              sendEvent('result', {
+                session_id: parsed.session_id,
+                cost: parsed.total_cost_usd,
+                duration: parsed.duration_ms,
+                result: parsed.result,
+              })
+            } else if (parsed.type === 'system') {
+              sendEvent('system', { subtype: parsed.subtype, session_id: parsed.session_id })
+            } else {
+              sendEvent('message', parsed)
+            }
+          } catch {
+            if (line.trim()) sendEvent('text', { content: line })
+          }
+        }
+      })
+
+      child.stderr?.on('data', (chunk: Buffer) => {
+        const text = chunk.toString().trim()
+        if (text) sendEvent('error', { content: text })
+      })
+
+      child.on('close', (code) => {
+        // Flush remaining buffer
+        if (buffer.trim()) {
+          try {
+            const parsed = JSON.parse(buffer)
+            sendEvent('message', parsed)
+          } catch {
+            if (buffer.trim()) sendEvent('text', { content: buffer })
+          }
+        }
+        sendEvent('done', { code })
+        controller.close()
+        if (activeChatProcess === child) activeChatProcess = null
+      })
+
+      child.on('error', (err) => {
+        sendEvent('error', { content: err.message })
+        controller.close()
+        if (activeChatProcess === child) activeChatProcess = null
+      })
+    },
+    cancel() {
+      child.kill('SIGTERM')
+      if (activeChatProcess === child) activeChatProcess = null
+    },
+  })
+
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'Access-Control-Allow-Origin': '*',
+    },
+  })
+}
+
+function handleChatAbort(): Response {
+  if (activeChatProcess) {
+    activeChatProcess.kill('SIGTERM')
+    activeChatProcess = null
+    return json({ ok: true, message: 'Chat aborted' })
+  }
+  return json({ ok: true, message: 'No active chat' })
+}
+
 // Serve the inlined SPA HTML for all non-API routes
 function serveStatic(): Response {
   return new Response(ADMIN_HTML, {
-    headers: { 'Content-Type': 'text/html; charset=utf-8' },
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+    },
   })
 }
 
 export async function startAdminServer(opts: { port?: number } = {}) {
-  const port = opts.port || 3456
+  let port = opts.port || 3456
 
-  const server = Bun.serve({
-    port,
-    async fetch(req) {
-      const url = new URL(req.url)
+  // Auto-find available port if default is in use
+  for (let attempt = 0; attempt < 10; attempt++) {
+    try {
+      const server = Bun.serve({
+        port,
+        async fetch(req) {
+          const url = new URL(req.url)
 
-      if (req.method === 'OPTIONS') {
-        return new Response(null, {
-          headers: {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'GET, PUT, POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type',
-          },
-        })
+          if (req.method === 'OPTIONS') {
+            return new Response(null, {
+              headers: {
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'GET, PUT, POST, OPTIONS',
+                'Access-Control-Allow-Headers': 'Content-Type',
+              },
+            })
+          }
+
+          if (url.pathname === '/__admin__/app.js') {
+            return new Response(ADMIN_JS, {
+              headers: { 'Content-Type': 'application/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=31536000, immutable' },
+            })
+          }
+          if (url.pathname === '/__admin__/app.css') {
+            return new Response(ADMIN_CSS, {
+              headers: { 'Content-Type': 'text/css; charset=utf-8', 'Cache-Control': 'public, max-age=31536000, immutable' },
+            })
+          }
+
+          if (url.pathname.startsWith('/api/')) {
+            try {
+              return await handleApi(req, url)
+            } catch (e: any) {
+              return err(e.message, 500)
+            }
+          }
+
+          return serveStatic()
+        },
+      })
+
+      console.log(`\n  LegnaCode Admin WebUI`)
+      console.log(`  http://localhost:${port}`)
+      console.log(`  Ctrl+C 退出\n`)
+
+      // Try to open browser
+      try {
+        const { exec } = await import('child_process')
+        const cmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open'
+        exec(`${cmd} http://localhost:${port}`)
+      } catch {}
+
+      // Clean shutdown
+      const shutdown = () => {
+        server.stop()
+        process.stdout.write('\x1b[2J\x1b[H')
+        process.exit(0)
       }
+      process.on('SIGINT', shutdown)
+      process.on('SIGTERM', shutdown)
 
-      if (url.pathname.startsWith('/api/')) {
-        try {
-          return await handleApi(req, url)
-        } catch (e: any) {
-          return err(e.message, 500)
-        }
+      return server
+    } catch (e: any) {
+      if (e.code === 'EADDRINUSE') {
+        console.log(`  Port ${port} in use, trying ${port + 1}...`)
+        port++
+        continue
       }
-
-      return serveStatic()
-    },
-  })
-
-  console.log(`\n  LegnaCode Admin WebUI`)
-  console.log(`  http://localhost:${port}`)
-  console.log(`  Ctrl+C 退出\n`)
-
-  // Try to open browser
-  try {
-    const { exec } = await import('child_process')
-    const cmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open'
-    exec(`${cmd} http://localhost:${port}`)
-  } catch {}
-
-  // Clean shutdown: stop server, clear output, restore terminal
-  const shutdown = () => {
-    server.stop()
-    // Clear the lines we printed + move cursor to top-left
-    process.stdout.write('\x1b[2J\x1b[H')
-    process.exit(0)
+      throw e
+    }
   }
-  process.on('SIGINT', shutdown)
-  process.on('SIGTERM', shutdown)
-
-  return server
+  throw new Error(`Could not find available port (tried ${opts.port || 3456}–${port})`)
 }
 
 if (import.meta.main) {

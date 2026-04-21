@@ -62,6 +62,10 @@ export function getVersion() {
   return request<{ version: string }>('/api/version')
 }
 
+export function getSessionMessages(scope: Scope, sessionId: string) {
+  return request<any[]>(`/api/${scope}/sessions/${sessionId}/messages`)
+}
+
 export interface MigrateRequest {
   from: Scope
   to: Scope

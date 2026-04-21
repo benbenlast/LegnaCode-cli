@@ -4,6 +4,28 @@
 
 All notable changes to LegnaCode CLI will be documented in this file.
 
+## [1.5.3] - 2026-04-21
+
+### Features
+
+- **Hermes Self-Evolution Loop** — Automatic learning closed loop: repeated tool patterns (3x) auto-generate SKILL.md via side-channel LLM; behavior corrections auto-write to `.legna/memory/`; no user confirmation needed. Background Review Agent extracts experience insights after each session.
+- **Qwen Model Adapter** — Dedicated adapter for Qwen full series (qwen-plus, qwen-max, qwen-turbo, qwen-coder-plus, qwq-plus, qwen3-235b). Supports `thinking_budget` mapping, DashScope server-side web search (`enable_search`), `reasoning_content` streaming, and `content_filter` stop reason.
+- **WebUI Chat Viewer** — New "聊天记录" panel in admin WebUI. Browse session history with full message rendering, collapsible thinking blocks, tool call visualization (input/output/error), and auto-scroll. Backend `/api/:scope/sessions/:id/messages` endpoint reads JSONL session files.
+- **WebUI Live Chat** — `legna admin` WebUI now supports live chat via SSE streaming. Send messages, see streaming responses with thinking/tool-use visualization. Note: each message starts a new independent session (no multi-turn conversation); intended for quick API connectivity testing, not as a full chat client.
+- **Skill Auto-Create** — `SkillPatternDetector.record()` was already wired but results were never surfaced. Now auto-creates skills from detected patterns and notifies user after the fact.
+- **Skill Improvement Path B** — `skillImprovement` no longer gated to active skill execution. General conversation learning detects workflow preferences, behavior corrections, and coding style preferences every 10 user messages.
+- **Nudge System** — Counter-driven session learning summary. Reports what was automatically learned (skills created, corrections captured, insights recorded) instead of suggesting the user go learn.
+
+### Improvements
+
+- **onPreCompress Enhanced** — Working state extraction added alongside existing exchange pair extraction. Captures current task, key decisions, file paths, and error patterns before context compression. High-priority drawer written to DrawerStore.
+- **Skill Version Backup** — `applySkillImprovement` now backs up current SKILL.md to `.versions/` before overwriting. Changelog with last 20 versions maintained automatically.
+- **`/skillify` Unlocked** — Removed `USER_TYPE === 'ant'` gate. All users can now capture session workflows as reusable skills.
+
+### Bug Fixes
+
+- **WebUI inline script crash** — Fixed `Unexpected token '<'` error caused by unescaped `</` sequences in inlined JavaScript. JS and CSS are now served as separate files (`/__admin__/app.js`, `/__admin__/app.css`) instead of being inlined into `<script>` tags.
+
 ## [1.5.2] - 2026-04-20
 
 ### Performance

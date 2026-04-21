@@ -47,3 +47,5 @@ superpowers/
 
 # Vendor references (upstream repos for analysis)
 vendor/
+
+.legna/

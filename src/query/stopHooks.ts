@@ -50,6 +50,9 @@ const jobClassifierModule = feature('TEMPLATES')
 
 import type { QuerySource } from '../constants/querySource.js'
 import { executeAutoDream } from '../services/autoDream/autoDream.js'
+import { autoCreateSkillFromPatterns } from '../services/skillAutoCreate.js'
+import { executeReviewAgent } from '../services/hermes/reviewAgent.js'
+import { getNudgeContent } from '../services/hermes/nudgeSystem.js'
 import { executePromptSuggestion } from '../services/PromptSuggestion/promptSuggestion.js'
 import { isBareMode, isEnvDefinedFalsy } from '../utils/envUtils.js'
 import {
@@ -153,6 +156,22 @@ export async function* handleStopHooks(
     }
     if (!toolUseContext.agentId) {
       void executeAutoDream(stopHookContext, toolUseContext.appendSystemMessage)
+    }
+    // Hermes: auto-create skills from repeated tool patterns
+    if (!toolUseContext.agentId) {
+      void autoCreateSkillFromPatterns(toolUseContext.appendSystemMessage)
+    }
+    // Hermes: background review agent — extract experience insights
+    if (!toolUseContext.agentId) {
+      void executeReviewAgent(stopHookContext, toolUseContext.appendSystemMessage)
+    }
+    // Hermes: nudge system — inject learning reminders when thresholds are reached
+    if (!toolUseContext.agentId && toolUseContext.appendSystemMessage) {
+      const turnCount = stopHookContext.messages.filter(m => m.type === 'user').length
+      const nudge = getNudgeContent(turnCount)
+      if (nudge) {
+        toolUseContext.appendSystemMessage(nudge, 'suggestion')
+      }
     }
   }
 

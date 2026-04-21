@@ -9,6 +9,7 @@
 import { readFile, readdir, mkdir, writeFile as fsWriteFile } from 'fs/promises'
 import { join, basename } from 'path'
 import { existsSync } from 'fs'
+import { createHash } from 'crypto'
 import { MemoryProvider, type ToolSchema } from './MemoryProvider.js'
 import { getCwd } from '../../utils/cwd.js'
 import { logForDebugging } from '../../utils/debug.js'
@@ -225,8 +226,7 @@ export class FileMemoryProvider extends MemoryProvider {
   }
 
   onPreCompress(messages: unknown[]): string {
-    // Extract exchange pairs from messages about to be compressed
-    // and save high-value ones to DrawerStore before they're lost.
+    // Extract exchange pairs AND working state from messages about to be compressed.
     if (!this.store) return ''
 
     try {
@@ -243,23 +243,106 @@ export class FileMemoryProvider extends MemoryProvider {
         })
         .filter(m => m.content.length > 20)
 
+      // 1. Exchange pair extraction (existing)
       const pairs = extractExchangePairs(simplified)
       const drawers = pairsToDrawers(pairs, this.projectSlug, `compact-${Date.now()}`)
 
       if (drawers.length > 0) {
         this.store.upsertMany(drawers, 'precompress')
         logForDebugging(`[FileMemoryProvider] onPreCompress: saved ${drawers.length} exchange pairs to DrawerStore`)
-
-        // Compound engineering: write high-value pairs to docs/solutions/ (opt-in via mkdir)
         void this.compoundExtract(pairs, drawers)
       }
 
-      return drawers.length > 0
-        ? `[Preserved ${drawers.length} key exchanges from compressed context]`
-        : ''
+      // 2. Working state extraction — capture what the user is doing, not just Q&A pairs.
+      //    This survives compaction so the agent can resume without losing context.
+      const workingState = this.extractWorkingState(simplified)
+      if (workingState.drawer) {
+        this.store.upsert(workingState.drawer, 'precompress_state')
+        logForDebugging(`[FileMemoryProvider] onPreCompress: saved working state to DrawerStore`)
+      }
+
+      const parts: string[] = []
+      if (drawers.length > 0) parts.push(`Preserved ${drawers.length} key exchanges`)
+      if (workingState.summary) parts.push(workingState.summary)
+
+      return parts.length > 0 ? `[${parts.join('. ')}]` : ''
     } catch (err) {
       logForDebugging(`[FileMemoryProvider] onPreCompress error: ${err}`)
       return ''
+    }
+  }
+
+  /**
+   * Extract working state from messages about to be compressed.
+   * Pure rule-based extraction (no LLM call — must be fast on the compact path).
+   */
+  private extractWorkingState(
+    messages: Array<{ type: string; content: string }>,
+  ): { summary: string; drawer: Drawer | null } {
+    // Take the last ~10 messages for recency
+    const recent = messages.slice(-10)
+    const parts: string[] = []
+
+    // Current task: last user message with substantial content
+    const lastUserMsgs = recent.filter(m => m.type === 'user').slice(-2)
+    for (const msg of lastUserMsgs) {
+      const trimmed = msg.content.slice(0, 300).trim()
+      if (trimmed.length > 30) parts.push(`Task: ${trimmed}`)
+    }
+
+    // Key decisions: assistant messages containing decision language
+    const decisionPatterns = /(?:I(?:'ll| will)|Let's|chose|decided|going with|approach:|plan:|strategy:)/i
+    for (const msg of recent.filter(m => m.type === 'assistant')) {
+      for (const line of msg.content.split('\n')) {
+        if (decisionPatterns.test(line) && line.length > 30 && line.length < 300) {
+          parts.push(`Decision: ${line.trim()}`)
+        }
+      }
+    }
+
+    // File paths mentioned (from tool results or assistant text)
+    const pathPattern = /(?:^|\s)((?:\/|\.\/|src\/|lib\/|test\/)\S+\.\w{1,6})/gm
+    const paths = new Set<string>()
+    for (const msg of recent) {
+      for (const match of msg.content.matchAll(pathPattern)) {
+        if (match[1] && paths.size < 10) paths.add(match[1])
+      }
+    }
+    if (paths.size > 0) parts.push(`Files: ${[...paths].join(', ')}`)
+
+    // Error patterns
+    const errorPattern = /(?:error|Error|ERROR|failed|Failed|FAILED|exception|Exception):\s*(.{20,150})/
+    for (const msg of recent.slice(-4)) {
+      const match = msg.content.match(errorPattern)
+      if (match?.[1]) {
+        parts.push(`Error: ${match[1].trim()}`)
+        break // only the most recent error
+      }
+    }
+
+    if (parts.length === 0) return { summary: '', drawer: null }
+
+    const content = parts.slice(0, 8).join('\n')
+    const summary = `Working state: ${parts[0] ?? ''}`
+
+    const id = createHash('sha256')
+      .update(`${this.projectSlug}\0working_state\0${Date.now()}`)
+      .digest('hex')
+      .slice(0, 24)
+
+    return {
+      summary,
+      drawer: {
+        id,
+        content,
+        wing: this.projectSlug,
+        room: 'working_state',
+        sourceFile: `compact-state-${Date.now()}`,
+        chunkIndex: 0,
+        importance: 0.9, // high priority — recent working context
+        addedBy: 'precompress_state',
+        filedAt: new Date().toISOString(),
+      },
     }
   }
 

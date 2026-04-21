@@ -5,18 +5,19 @@ import { SettingsPanel } from './components/settings-panel'
 import { ProfilesPanel } from './components/profiles-panel'
 import { SessionsPanel } from './components/sessions-panel'
 import { MigrationPanel } from './components/migration-panel'
+import { ChatPanel } from './components/chat-panel'
 
 const TABS: { key: Scope; label: string }[] = [
   { key: 'claude', label: 'Claude' },
   { key: 'legna', label: 'LegnaCode' },
 ]
 
-const PANELS = ['settings', 'profiles', 'sessions', 'migration'] as const
+const PANELS = ['chat', 'settings', 'profiles', 'sessions', 'migration'] as const
 type Panel = typeof PANELS[number]
 
 export default function App() {
   const [scope, setScope] = useState<Scope>('claude')
-  const [panel, setPanel] = useState<Panel>('settings')
+  const [panel, setPanel] = useState<Panel>('chat')
   const [version, setVersion] = useState('')
 
   useEffect(() => {
@@ -60,12 +61,13 @@ export default function App() {
                 : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
             }`}
           >
-            {p === 'settings' ? '配置编辑' : p === 'profiles' ? '配置文件' : p === 'sessions' ? '会话记录' : '配置迁移'}
+            {p === 'chat' ? '聊天记录' : p === 'settings' ? '配置编辑' : p === 'profiles' ? '配置文件' : p === 'sessions' ? '会话记录' : '配置迁移'}
           </button>
         ))}
       </div>
 
       {/* Panel content */}
+      {panel === 'chat' && <ChatPanel scope={scope} />}
       {panel === 'settings' && <SettingsPanel scope={scope} />}
       {panel === 'profiles' && <ProfilesPanel scope={scope} />}
       {panel === 'sessions' && <SessionsPanel scope={scope} />}
