@@ -1,5 +1,7 @@
 # LegnaCode 开发者文档
 
+🌐 [English Version](./developer.en.md)
+
 本文档面向希望参与 LegnaCode 开发、构建插件/技能、或对接 Admin API 的开发者。
 
 ---
