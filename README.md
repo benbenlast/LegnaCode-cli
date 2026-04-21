@@ -4,7 +4,7 @@
 
 **An AI-powered terminal programming assistant, supercharged.**
 
-[![version](https://img.shields.io/badge/version-1.5.6-blue)](./CHANGELOG.md)
+[![version](https://img.shields.io/badge/version-1.5.7-blue)](./CHANGELOG.md)
 [![platforms](https://img.shields.io/badge/platforms-macOS%20%7C%20Linux%20%7C%20Windows-brightgreen)](#platform-support)
 [![license](https://img.shields.io/badge/license-MIT-yellow)](./LICENSE)
 [![Claude Code](https://img.shields.io/badge/based%20on-Claude%20Code-blueviolet)](https://github.com/anthropics/claude-code)
@@ -34,6 +34,7 @@ LegnaCode is built on top of [Claude Code CLI](https://github.com/anthropics/cla
 
 | Version | Summary |
 |---------|---------|
+| **1.5.7** | Git-style `/fork` command: fork from any message (`@N`), list branches, switch between forks |
 | **1.5.6** | WebUI SSE timeout fix (255s max); controller double-close crash fix |
 | **1.5.4** | Republish with all platform binaries in sync |
 | **1.5.3** | Hermes self-evolution loop; Qwen adapter; WebUI chat viewer & live chat; auto skill creation |

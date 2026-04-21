@@ -4,6 +4,18 @@
 
 All notable changes to LegnaCode CLI will be documented in this file.
 
+## [1.5.7] - 2026-04-21
+
+### Features
+
+- **Git-style `/fork` command** — Unified conversation forking with sub-commands:
+  - `/fork` — Fork from current position (replaces `/branch`)
+  - `/fork @N` — Fork from the Nth user message, truncating subsequent history
+  - `/fork list` — Display branch tree with ASCII art, marking current branch
+  - `/fork switch <id|name>` — Switch between conversation branches
+  - `/fork <name>` — Fork with a custom name
+  - `/branch` is now an alias for `/fork`
+
 ## [1.5.6] - 2026-04-21
 
 ### Bug Fixes

@@ -47,7 +47,7 @@ async function handleApi(req: Request, url: URL): Promise<Response> {
 
   // GET /api/version
   if (parts[0] === 'version' && method === 'GET') {
-    return json({ version: typeof MACRO !== 'undefined' ? MACRO.VERSION : '1.5.6' })
+    return json({ version: typeof MACRO !== 'undefined' ? MACRO.VERSION : '1.5.7' })
   }
 
   // POST /api/migrate

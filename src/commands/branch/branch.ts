@@ -58,7 +58,7 @@ export function deriveFirstPrompt(
  * Preserves all original metadata (timestamps, gitBranch, etc.) while updating
  * sessionId and adding forkedFrom traceability.
  */
-async function createFork(customTitle?: string): Promise<{
+export async function createFork(customTitle?: string, atMessageIndex?: number): Promise<{
   sessionId: UUID
   title: string | undefined
   forkPath: string
@@ -95,6 +95,11 @@ async function createFork(customTitle?: string): Promise<{
       isTranscriptMessage(entry) && !entry.isSidechain,
   )
 
+  // If atMessageIndex is specified, truncate to that point
+  const entriesToFork = atMessageIndex !== undefined
+    ? mainConversationEntries.slice(0, atMessageIndex + 1)
+    : mainConversationEntries
+
   // Content-replacement entries for the original session. These record which
   // tool_result blocks were replaced with previews by the per-message budget.
   // Without them in the fork JSONL, `claude -r {forkId}` reconstructs state
@@ -110,7 +115,7 @@ async function createFork(customTitle?: string): Promise<{
     )
     .flatMap(entry => entry.replacements)
 
-  if (mainConversationEntries.length === 0) {
+  if (entriesToFork.length === 0) {
     throw new Error('No messages to branch')
   }
 
@@ -119,7 +124,7 @@ async function createFork(customTitle?: string): Promise<{
   const lines: string[] = []
   const serializedMessages: SerializedMessage[] = []
 
-  for (const entry of mainConversationEntries) {
+  for (const entry of entriesToFork) {
     // Create forked transcript entry preserving all original metadata
     const forkedEntry: TranscriptEntry = {
       ...entry,
@@ -176,7 +181,7 @@ async function createFork(customTitle?: string): Promise<{
  * Generates a unique fork name by checking for collisions with existing session names.
  * If "baseName (Branch)" already exists, tries "baseName (Branch 2)", "baseName (Branch 3)", etc.
  */
-async function getUniqueForkName(baseName: string): Promise<string> {
+export async function getUniqueForkName(baseName: string): Promise<string> {
   const candidateName = `${baseName} (Branch)`
 
   // Check if this exact name already exists

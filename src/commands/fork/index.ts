@@ -1,13 +1,11 @@
 import type { Command } from '../../commands.js'
-import { isForkSubagentEnabled } from '../../tools/AgentTool/forkSubagent.js'
 
 const fork = {
-  type: 'local',
+  type: 'local-jsx',
   name: 'fork',
-  description: 'Fork a sub-agent with the current conversation context',
-  isEnabled: () => isForkSubagentEnabled(),
-  argumentHint: '<directive>',
-  supportsNonInteractive: false,
+  aliases: ['branch'],
+  description: 'Fork conversation at current point or from a specific message',
+  argumentHint: '[list | switch <id> | @N | <name>]',
   load: () => import('./fork.js'),
 } satisfies Command
 

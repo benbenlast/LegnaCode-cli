@@ -113,11 +113,7 @@ const peersCmd = feature('UDS_INBOX')
       require('./commands/peers/index.js') as typeof import('./commands/peers/index.js')
     ).default
   : null
-const forkCmd = feature('FORK_SUBAGENT')
-  ? (
-      require('./commands/fork/index.js') as typeof import('./commands/fork/index.js')
-    ).default
-  : null
+const forkCmd = null // fork is now always-on, imported directly
 const buddy = feature('BUDDY')
   ? (
       require('./commands/buddy/index.js') as typeof import('./commands/buddy/index.js')
@@ -133,7 +129,7 @@ import passes from './commands/passes/index.js'
 import privacySettings from './commands/privacy-settings/index.js'
 import hooks from './commands/hooks/index.js'
 import files from './commands/files/index.js'
-import branch from './commands/branch/index.js'
+import fork from './commands/fork/index.js'
 import agents from './commands/agents/index.js'
 import plugin from './commands/plugin/index.js'
 import reloadPlugins from './commands/reload-plugins/index.js'
@@ -263,7 +259,7 @@ const COMMANDS = memoize((): Command[] => [
   addDir,
   advisor,
   agents,
-  branch,
+  fork,
   btw,
   chrome,
   clear,
@@ -325,7 +321,7 @@ const COMMANDS = memoize((): Command[] => [
   usageReport,
   vim,
   ...(webCmd ? [webCmd] : []),
-  ...(forkCmd ? [forkCmd] : []),
+  // forkCmd removed — fork is now always-on via direct import
   ...(buddy ? [buddy] : []),
   ...(proactive ? [proactive] : []),
   ...(briefCommand ? [briefCommand] : []),

@@ -2,6 +2,18 @@
 
 All notable changes to LegnaCode CLI will be documented in this file.
 
+## [1.5.7] - 2026-04-21
+
+### Features
+
+- **Git 风格 `/fork` 命令** — 统一的会话分叉功能，支持子命令：
+  - `/fork` — 从当前位置分叉（替代 `/branch`）
+  - `/fork @N` — 从第 N 条用户消息处分叉，截断后续历史
+  - `/fork list` — 以 ASCII 树形展示分支结构，标记当前分支
+  - `/fork switch <id|名称>` — 在会话分支间切换
+  - `/fork <名称>` — 带自定义名称分叉
+  - `/branch` 现为 `/fork` 的别名
+
 ## [1.5.6] - 2026-04-21
 
 ### Bug Fixes
