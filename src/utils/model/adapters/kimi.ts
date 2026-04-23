@@ -23,7 +23,7 @@ import type { ModelAdapter } from './index.js'
 import {
   simplifyThinking,
   forceAutoToolChoice,
-  normalizeTools,
+  normalizeToolsKeepCache,
   stripBetas,
   stripUnsupportedFields,
   stripReasoningContent,
@@ -48,7 +48,7 @@ export const KimiAdapter: ModelAdapter = {
     const out = { ...params }
     simplifyThinking(out)
     forceAutoToolChoice(out)
-    normalizeTools(out)
+    normalizeToolsKeepCache(out)
     stripBetas(out)
     stripUnsupportedFields(out)
     stripReasoningContent(out)

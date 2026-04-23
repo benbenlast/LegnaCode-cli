@@ -27,6 +27,7 @@ type Output = z.infer<OutputSchema>
 
 export const SleepTool = buildTool({
   name: SLEEP_TOOL_NAME,
+  shouldDefer: true,
   get inputSchema(): InputSchema {
     return inputSchema()
   },

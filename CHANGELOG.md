@@ -4,6 +4,16 @@
 
 All notable changes to LegnaCode CLI will be documented in this file.
 
+## [1.8.5] - 2026-04-23
+
+### Optimizations
+
+- **Tool Prompt Compression** — Compressed tool descriptions for BashTool (~21K→~12K chars), AgentTool (~16K→~13K chars), TodoWriteTool (~9.5K→~2K chars), and EnterPlanModeTool (~7.7K→~2K chars). Reduces first-request token cost by ~8,000-10,000 tokens.
+
+### Bug Fixes
+
+- **Model Adapter cache_control Fix** — Added `normalizeToolsKeepCache()` variant in `src/utils/model/adapters/shared.ts` that preserves `cache_control` on tool definitions. Kimi, MiniMax, and MiMo adapters now use it, fixing tool-level prompt caching that was silently stripped by `normalizeTools()`. MiMo adapter also drops unnecessary `stripCacheControl()` since its API supports server-side auto caching.
+
 ## [1.8.4] - 2026-04-22
 
 ### Bug Fixes

@@ -38,6 +38,18 @@ export function normalizeTools(params: Record<string, any>): void {
   }))
 }
 
+/** Like normalizeTools but preserves cache_control for providers that support it */
+export function normalizeToolsKeepCache(params: Record<string, any>): void {
+  if (!params.tools || !Array.isArray(params.tools)) return
+  params.tools = params.tools.map((tool: any) => ({
+    ...tool,
+    type: 'custom',
+    strict: undefined,
+    defer_loading: undefined,
+    eager_input_streaming: undefined,
+  }))
+}
+
 /** Strip beta headers */
 export function stripBetas(params: Record<string, any>): void {
   delete params.betas

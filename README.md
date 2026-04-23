@@ -4,7 +4,7 @@
 
 **An AI-powered terminal programming assistant, supercharged.**
 
-[![version](https://img.shields.io/badge/version-1.8.4-blue)](./CHANGELOG.md)
+[![version](https://img.shields.io/badge/version-1.8.5-blue)](./CHANGELOG.md)
 [![platforms](https://img.shields.io/badge/platforms-macOS%20%7C%20Linux%20%7C%20Windows-brightgreen)](#platform-support)
 [![license](https://img.shields.io/badge/license-MIT-yellow)](./LICENSE)
 [![Claude Code](https://img.shields.io/badge/based%20on-Claude%20Code-blueviolet)](https://github.com/anthropics/claude-code)
@@ -34,35 +34,36 @@ LegnaCode is built on top of [Claude Code CLI](https://github.com/anthropics/cla
 
 | Version | Summary |
 |---------|---------|
+| **1.8.5** | Token optimization: compress tool prompts (BashTool/AgentTool/TodoWrite/EnterPlanMode); fix cache_control for Kimi/MiniMax/MiMo adapters |
 | **1.8.4** | Fix `isVirtual in m` crash — null guards for session transcript processing |
 | **1.8.3** | GitHub Actions CI release workflow; OML agent type fix; cross-platform Rust native addon builds |
 | **1.8.2** | Null-guard fixes for message pipeline crashes; Rust native addons (sandbox/file-search/apply-patch) for darwin-arm64 |
 | **1.8.0** | Codex full compat: plugin adapter + marketplace, skills discovery, config interop; TS/Python SDK; TTS + WebRTC voice |
-| **1.6.1** | Rust NAPI addon (cosine/tfidf/hash/tokens); kernel sandbox (Seatbelt/seccomp); two-pass wake-up; keyword-density L1 |
-| **1.6.0** | Collaboration modes (`/mode`); JS REPL bridge; JSON-RPC app-server; agent config migration (`/migrate`) |
-| **1.5.9** | Guardian sub-agent; shell escalation protocol; network policy agent |
-| **1.5.8** | Process hardening; exec policy engine; secret detector; rollback implementation |
-| **1.5.7** | Git-style `/fork` command: fork from any message (`@N`), list branches, switch between forks |
-| **1.5.6** | WebUI SSE timeout fix (255s max); controller double-close crash fix |
-| **1.5.4** | Republish with all platform binaries in sync |
-| **1.5.3** | Hermes self-evolution loop; Qwen adapter; WebUI chat viewer & live chat; auto skill creation |
-| **1.5.2** | Perf audit: async CodeGraph, undoTracker size guard, compacting i18n, TTL caches |
-| **1.5.1** | Proactive skill invocation (OML 1% rule); auto-inject frontend/design guidelines; enhanced designer agent |
-| **1.5.0** | Fix REPL startup deadlock; remove /undo static import; all AtomCode features fully wired |
-| **1.4.9** | Baseline (no-AVX) builds for older x64 CPUs (darwin-x64-baseline, linux-x64-baseline) |
-| **1.4.8** | AtomCode fusion (Pangu CJK spacing, frustration detection, loop guard, error file injection, first-read full) |
-| **1.4.7** | claude-mem fusion (content-hash dedup, token economics, relevance feedback, 90-day decay, privacy tags) |
-| **1.4.6** | OML skill crash fix; plans + memory → project-local; compound engineering fusion |
-| **1.4.5** | OpenViking content tiering (L0/L1/L2 degradation + budget-capped injection) |
-| **1.4.4** | Status messages → spinner line; comparison doc |
-| **1.4.3** | Mempalace memory fusion (DrawerStore + TF-IDF + 4-layer stack + knowledge graph) |
-| **1.4.2** | Progress feedback (8 silent paths fixed); verbose default on |
 
 <details>
 <summary>Older versions</summary>
 
 | Version | Summary |
 |---------|---------|
+| 1.6.1 | Rust NAPI addon (cosine/tfidf/hash/tokens); kernel sandbox (Seatbelt/seccomp); two-pass wake-up; keyword-density L1 |
+| 1.6.0 | Collaboration modes (`/mode`); JS REPL bridge; JSON-RPC app-server; agent config migration (`/migrate`) |
+| 1.5.9 | Guardian sub-agent; shell escalation protocol; network policy agent |
+| 1.5.8 | Process hardening; exec policy engine; secret detector; rollback implementation |
+| 1.5.7 | Git-style `/fork` command: fork from any message (`@N`), list branches, switch between forks |
+| 1.5.6 | WebUI SSE timeout fix (255s max); controller double-close crash fix |
+| 1.5.4 | Republish with all platform binaries in sync |
+| 1.5.3 | Hermes self-evolution loop; Qwen adapter; WebUI chat viewer & live chat; auto skill creation |
+| 1.5.2 | Perf audit: async CodeGraph, undoTracker size guard, compacting i18n, TTL caches |
+| 1.5.1 | Proactive skill invocation (OML 1% rule); auto-inject frontend/design guidelines; enhanced designer agent |
+| 1.5.0 | Fix REPL startup deadlock; remove /undo static import; all AtomCode features fully wired |
+| 1.4.9 | Baseline (no-AVX) builds for older x64 CPUs (darwin-x64-baseline, linux-x64-baseline) |
+| 1.4.8 | AtomCode fusion (Pangu CJK spacing, frustration detection, loop guard, error file injection, first-read full) |
+| 1.4.7 | claude-mem fusion (content-hash dedup, token economics, relevance feedback, 90-day decay, privacy tags) |
+| 1.4.6 | OML skill crash fix; plans + memory → project-local; compound engineering fusion |
+| 1.4.5 | OpenViking content tiering (L0/L1/L2 degradation + budget-capped injection) |
+| 1.4.4 | Status messages → spinner line; comparison doc |
+| 1.4.3 | Mempalace memory fusion (DrawerStore + TF-IDF + 4-layer stack + knowledge graph) |
+| 1.4.2 | Progress feedback (8 silent paths fixed); verbose default on |
 | 1.3.6 | Windows path separator fix for Edit tool |
 | 1.3.5 | SessionStart hook fix; Windows alt-screen rendering |
 | 1.3.4 | OML Superpowers (11 skills); SessionStart guidance |

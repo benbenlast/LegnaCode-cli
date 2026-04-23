@@ -11,7 +11,7 @@
  * 5. top_p: supported — inject default 0.95
  * 6. temperature: range [0, 1.5] vs Anthropic's [0, 1] (no clamping needed)
  * 7. metadata/speed/output_config/context_management: not supported — strip
- * 8. cache_control: not supported — strip from system/messages
+ * 8. cache_control: server-side auto caching (response includes cache_read_input_tokens) — keep
  * 9. Response: thinking block may appear after text block — reorder
  * 10. stop_reason: extra values content_filter/repetition_truncation
  *     - content_filter: content safety filter triggered, output truncated
@@ -24,11 +24,10 @@ import type { ModelAdapter } from './index.js'
 import {
   simplifyThinking,
   forceAutoToolChoice,
-  normalizeTools,
+  normalizeToolsKeepCache,
   stripBetas,
   injectTopP,
   stripUnsupportedFields,
-  stripCacheControl,
   reorderThinkingBlocks,
 } from './shared.js'
 
@@ -50,11 +49,10 @@ export const MiMoAdapter: ModelAdapter = {
     const out = { ...params }
     simplifyThinking(out)
     forceAutoToolChoice(out)
-    normalizeTools(out)
+    normalizeToolsKeepCache(out)
     stripBetas(out)
     injectTopP(out, 0.95)
     stripUnsupportedFields(out)
-    stripCacheControl(out)
     return out
   },
 

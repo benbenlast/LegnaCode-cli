@@ -28,7 +28,7 @@
 import type { ModelAdapter } from './index.js'
 import {
   simplifyThinking,
-  normalizeTools,
+  normalizeToolsKeepCache,
   stripBetas,
   stripUnsupportedFieldsKeepMetadata,
   reorderThinkingBlocks,
@@ -51,7 +51,7 @@ export const MiniMaxAdapter: ModelAdapter = {
   transformParams(params: Record<string, any>): Record<string, any> {
     const out = { ...params }
     simplifyThinking(out)
-    normalizeTools(out)
+    normalizeToolsKeepCache(out)
     stripBetas(out)
     stripUnsupportedFieldsKeepMetadata(out)
     return out

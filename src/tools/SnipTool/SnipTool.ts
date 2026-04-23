@@ -31,6 +31,7 @@ export const SnipTool = buildTool({
   name: SNIP_TOOL_NAME,
   searchHint: 'remove old messages free context window',
   maxResultSizeChars: 10_000,
+  shouldDefer: true,
   isReadOnly() {
     return false
   },

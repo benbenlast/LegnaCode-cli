@@ -2,6 +2,16 @@
 
 All notable changes to LegnaCode CLI will be documented in this file.
 
+## [1.8.5] - 2026-04-23
+
+### 优化
+
+- **工具提示词压缩** — 压缩 BashTool（~21K→~12K 字符）、AgentTool（~16K→~13K 字符）、TodoWriteTool（~9.5K→~2K 字符）、EnterPlanModeTool（~7.7K→~2K 字符）的工具描述。首次请求 token 消耗减少约 8,000-10,000 tokens。
+
+### 修复
+
+- **模型适配器 cache_control 修复** — 在 `src/utils/model/adapters/shared.ts` 新增 `normalizeToolsKeepCache()` 变体，保留工具定义上的 `cache_control`。Kimi、MiniMax、MiMo 适配器改用此函数，修复 `normalizeTools()` 静默删除工具级提示缓存的问题。MiMo 适配器同时移除不必要的 `stripCacheControl()`，因其 API 支持服务端自动缓存。
+
 ## [1.8.4] - 2026-04-22
 
 ### 修复
