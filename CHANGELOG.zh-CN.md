@@ -2,6 +2,24 @@
 
 All notable changes to LegnaCode CLI will be documented in this file.
 
+## [1.9.0] - 2026-04-24
+
+### 新功能
+
+- **可移植会话** — 迁移后的会话 JSONL 使用 `"cwd":"."` 相对路径。项目可随意移动、拷贝或通过 git 同步——在任何位置都能 resume。运行时在 `sessionStorage.ts`、`crossProjectResume.ts`、`listSessionsImpl.ts` 共 5 处自动将 `"."` 解析为当前工作目录。
+- **WebUI 项目浏览器** — 新增"项目总览"标签页，卡片式布局展示 `~/.claude/` 和 `~/.legna/` 下所有项目。显示会话数、最后活跃时间、迁移状态、来源（Claude/Legna/Both）。路径不存在的项目标红警告。
+- **WebUI 记忆编辑器** — 三栏布局：项目列表 → 文件树（支持子文件夹展开/折叠）→ Markdown 编辑器。顶部横幅："记忆是 AI 的建议性笔记，随项目演进自动更新，内容仅供参考"。
+- **WebUI 力导向关系图谱** — 交互式项目关系可视化，物理模拟（斥力 + 引力 + 中心重力 + 阻尼）。节点可拖拽。节点大小 = 会话数，颜色 = 活跃度，连线 = 同日活跃，显示权重标签。
+- **完整项目迁移** — 迁移内容包括：sessions（JSONL + subagents/ + tool-results/）、memory、skills/、agents/、rules/、CLAUDE.md → LEGNA.md、settings.json、.mcp.json。路径重写支持 Windows 反斜杠、空格、特殊字符、JSON 转义路径。
+- **多来源迁移** — 扫描 `~/.claude/projects/` 和 `~/.legna/projects/`，从 JSONL 的 `cwd` 字段读取真实路径（不再用 `-` 替换 `/`，修复 `claude-code-main` 被错误解析为 `claude/code/main` 的问题）。
+- **配置指针切换** — 配置文件切换改用 `.active-profile` 指针文件，不再物理重命名文件，原始文件名永久保留。
+
+### 改进
+
+- **迁移面板重设计** — 双标签布局："项目迁移"（项目级勾选、来源标签、状态标签）和"配置同步"（字段级选择、图标、可折叠 JSON 预览）。
+- **MCP 配置迁移** — 全局 `~/.claude/.mcp.json` 和项目级 `.claude/.mcp.json` 纳入迁移范围。
+- **Co-Authored-By 归属** — 从 `noreply@anthropic.com` 改为 `@LegnaOS` 贡献者身份。
+
 ## [1.8.5] - 2026-04-23
 
 ### 优化

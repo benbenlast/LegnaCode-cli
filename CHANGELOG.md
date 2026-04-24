@@ -4,6 +4,24 @@
 
 All notable changes to LegnaCode CLI will be documented in this file.
 
+## [1.9.0] - 2026-04-24
+
+### Features
+
+- **Portable Sessions** — Migrated session JSONL files use `"cwd":"."` relative paths instead of absolute paths. Projects can be moved, copied, or synced via git — resume works from any location. Runtime resolves `"."` to current working directory at 5 points in `sessionStorage.ts`, `crossProjectResume.ts`, and `listSessionsImpl.ts`.
+- **WebUI Project Browser** — New "项目总览" tab with card layout showing all projects from `~/.claude/` and `~/.legna/`. Displays session count, last active time, migration status, source (Claude/Legna/Both). Missing paths highlighted in red.
+- **WebUI Memory Editor** — Three-column layout: project list → file tree with expand/collapse for subdirectories → Markdown editor. Banner: "记忆是 AI 的建议性笔记，随项目演进自动更新，内容仅供参考".
+- **WebUI Force-Directed Graph** — Interactive project relationship visualization with physics simulation (repulsion + attraction + center gravity + damping). Draggable nodes. Node size = session count, color = recency, edges = same-day activity with weight labels.
+- **Full Project Migration** — Migrates sessions (JSONL + subagents/ + tool-results/), memory, skills/, agents/, rules/, CLAUDE.md → LEGNA.md, settings.json, .mcp.json. Path rewriting handles Windows backslash, spaces, special characters, JSON-escaped paths.
+- **Multi-Source Migration** — Scans `~/.claude/projects/`, `~/.legna/projects/` with correct path resolution from JSONL `cwd` field (no more `-` to `/` misparse for paths like `claude-code-main`).
+- **Profile Pointer Switching** — Config profile switching uses `.active-profile` pointer file instead of physically renaming files. Original filenames preserved permanently.
+
+### Improvements
+
+- **Migration Panel Redesign** — Two-tab layout: "项目迁移" (project-level with checkboxes, source badges, status tags) and "配置同步" (field-level with icons, collapsible JSON preview).
+- **MCP Config Migration** — Global `~/.claude/.mcp.json` and project-level `.claude/.mcp.json` included in migration.
+- **Co-Authored-By Attribution** — Changed from `noreply@anthropic.com` to `@LegnaOS` contributor identity.
+
 ## [1.8.5] - 2026-04-23
 
 ### Optimizations

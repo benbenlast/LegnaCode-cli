@@ -33,43 +33,45 @@ export function checkCrossProjectResume(
   worktreePaths: string[],
 ): CrossProjectResumeResult {
   const currentCwd = getOriginalCwd()
+  // Resolve relative cwd from migrated sessions
+  const sessionPath = log.projectPath === '.' ? currentCwd : log.projectPath
 
-  if (!showAllProjects || !log.projectPath || log.projectPath === currentCwd) {
+  if (!showAllProjects || !sessionPath || sessionPath === currentCwd) {
     return { isCrossProject: false }
   }
 
   // Gate worktree detection to ants only for staged rollout
   if (process.env.USER_TYPE !== 'ant') {
     const sessionId = getSessionIdFromLog(log)
-    const command = `cd ${quote([log.projectPath])} && legna --resume ${sessionId}`
+    const command = `cd ${quote([sessionPath])} && legna --resume ${sessionId}`
     return {
       isCrossProject: true,
       isSameRepoWorktree: false,
       command,
-      projectPath: log.projectPath,
+      projectPath: sessionPath,
     }
   }
 
-  // Check if log.projectPath is under a worktree of the same repo
+  // Check if sessionPath is under a worktree of the same repo
   const isSameRepo = worktreePaths.some(
-    wt => log.projectPath === wt || log.projectPath!.startsWith(wt + sep),
+    wt => sessionPath === wt || sessionPath!.startsWith(wt + sep),
   )
 
   if (isSameRepo) {
     return {
       isCrossProject: true,
       isSameRepoWorktree: true,
-      projectPath: log.projectPath,
+      projectPath: sessionPath,
     }
   }
 
   // Different repo - generate cd command
   const sessionId = getSessionIdFromLog(log)
-  const command = `cd ${quote([log.projectPath])} && legna --resume ${sessionId}`
+  const command = `cd ${quote([sessionPath])} && legna --resume ${sessionId}`
   return {
     isCrossProject: true,
     isSameRepoWorktree: false,
     command,
-    projectPath: log.projectPath,
+    projectPath: sessionPath,
   }
 }

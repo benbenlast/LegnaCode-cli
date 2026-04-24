@@ -2525,7 +2525,7 @@ function convertToLogOption(
     attributionSnapshots: attributionSnapshots,
     contentReplacements,
     gitBranch: lastMessage.gitBranch,
-    projectPath: firstMessage.cwd,
+    projectPath: firstMessage.cwd === '.' ? getOriginalCwd() : firstMessage.cwd,
   }
 }
 
@@ -4717,7 +4717,7 @@ export async function loadAllLogsFromSessionFile(
       prUrl: prUrls.get(sessionId),
       prRepository: prRepositories.get(sessionId),
       gitBranch: leafMessage.gitBranch,
-      projectPath: projectPathOverride ?? firstMessage.cwd,
+      projectPath: projectPathOverride ?? (firstMessage.cwd === '.' ? getOriginalCwd() : firstMessage.cwd),
       fileHistorySnapshots: buildFileHistorySnapshotChain(
         fileHistorySnapshots,
         chain,
@@ -4789,6 +4789,8 @@ async function readLiteMetadata(
   const isSidechain =
     head.includes('"isSidechain":true') || head.includes('"isSidechain": true')
   const projectPath = extractJsonStringField(head, 'cwd')
+  // Resolve relative cwd — migrated sessions use "." for portability
+  const resolvedProjectPath = projectPath === '.' ? getOriginalCwd() : projectPath
   const teamName = extractJsonStringField(head, 'teamName')
   const agentSetting = extractJsonStringField(head, 'agentSetting')
 
@@ -4840,7 +4842,7 @@ async function readLiteMetadata(
     firstPrompt,
     gitBranch,
     isSidechain,
-    projectPath,
+    projectPath: resolvedProjectPath,
     teamName,
     customTitle,
     summary,
