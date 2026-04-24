@@ -4,6 +4,19 @@
 
 All notable changes to LegnaCode CLI will be documented in this file.
 
+## [1.9.1] - 2026-04-25
+
+### Features
+
+- **Computer Use Python Bridge** — Replaced native Swift/Rust modules (`@ant/computer-use-swift` + `@ant/computer-use-input`) with pure Python subprocess bridge (`runtime/mac_helper.py` + `runtime/win_helper.py`). Zero NAPI dependencies. Supports 28 commands: screenshot, mouse, keyboard, app management, clipboard, permission detection. Cross-platform: macOS and Windows.
+- **Auto Python Environment Setup** — First Computer Use invocation automatically detects system Python 3.12+, creates a venv at `~/.legna/computer-use-venv/`, installs platform-specific dependencies. Search order: `LEGNA_PYTHON_BIN` env → `python3.14`..`python3.12` → `python3`/`python` → Windows `py` launcher. Requirements hash invalidation triggers reinstall on dependency changes.
+- **Platform-Specific Dependencies** — Split `requirements.txt` into `requirements-macos.txt` (pyobjc), `requirements-windows.txt` (pywin32/psutil/screeninfo/pyperclip), `requirements-common.txt` (mss/Pillow/pyautogui).
+
+### Improvements
+
+- **Feature Gate Removal** — Removed all GrowthBook remote feature flags and Max/Pro subscription checks for Computer Use. Now controlled by local `settings.json` (`computerUse.enabled`, default `true`). Available to all users.
+- **Executor Simplification** — `executor.ts` rewritten from ~800 lines to ~200 lines. No CFRunLoop drain, no NAPI, no animated mouse movement — pure subprocess I/O.
+
 ## [1.9.0] - 2026-04-24
 
 ### Features

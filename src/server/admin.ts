@@ -101,6 +101,26 @@ async function handleApi(req: Request, url: URL): Promise<Response> {
     return handleGraph()
   }
 
+  // Computer Use setup (CLI/WebUI)
+  if (parts[0] === 'computer-use' && parts[1] === 'setup' && method === 'POST') {
+    try {
+      const { ensurePythonEnv } = await import('../utils/computerUse/pythonSetup.js')
+      await ensurePythonEnv()
+      return json({ ok: true })
+    } catch (e: any) {
+      return json({ ok: false, error: e.message }, 500)
+    }
+  }
+  if (parts[0] === 'computer-use' && parts[1] === 'status' && method === 'GET') {
+    try {
+      const { isComputerUseSetup } = await import('../utils/computerUse/pythonSetup.js')
+      const ready = await isComputerUseSetup()
+      return json({ ready })
+    } catch {
+      return json({ ready: false })
+    }
+  }
+
   // Scoped endpoints: /api/:scope/...
   const scope = parts[0] as Scope
   if (scope !== 'claude' && scope !== 'legna') return err('Invalid scope', 404)
@@ -599,14 +619,32 @@ function resolveProjectPath(slug: string, projectDir: string): string {
     for (const f of files) {
       try {
         const head = readFileSync(join(projectDir, f), 'utf-8').split('\n')[0] || ''
-        // Extract "cwd":"..." from the first line
         const match = head.match(/"cwd"\s*:\s*"([^"]+)"/)
-        if (match && match[1] && match[1] !== '.') return match[1]
+        if (match && match[1]) {
+          if (match[1] === '.') {
+            // Relative path — this is a migrated project. The real path is
+            // the project directory that contains .legna/sessions/ with this file,
+            // OR we can derive it from the slug (which was the original sanitized path).
+            // Try to find the project by scanning known locations.
+            continue
+          }
+          return match[1]
+        }
       } catch {}
     }
   } catch {}
-  // Fallback to naive unsanitize
-  return unsanitizePath(slug)
+
+  // For migrated projects, also check if there's a .legna/sessions/ dir
+  // that contains JSONL files with cwd:"." — the project path IS the parent
+  // of .legna/. Scan common parent directories.
+  const unsanitized = unsanitizePath(slug)
+  if (existsSync(unsanitized)) return unsanitized
+
+  // Try to find project-local .legna/sessions/ by checking if the slug
+  // corresponds to a real directory that has .legna/ inside
+  if (existsSync(join(unsanitized, '.legna', 'sessions'))) return unsanitized
+
+  return unsanitized
 }
 
 function scanProjects(): ProjectInfo[] {
@@ -995,6 +1033,10 @@ function serveStatic(): Response {
   })
 }
 
+// ============================================================================
+// Desktop API handlers — removed (no desktop client)
+// ============================================================================
+
 export async function startAdminServer(opts: { port?: number } = {}) {
   let port = opts.port || 3456
 
@@ -1025,6 +1067,12 @@ export async function startAdminServer(opts: { port?: number } = {}) {
           if (url.pathname === '/__admin__/app.css') {
             return new Response(ADMIN_CSS, {
               headers: { 'Content-Type': 'text/css; charset=utf-8', 'Cache-Control': 'public, max-age=31536000, immutable' },
+            })
+          }
+
+          if (url.pathname === '/health') {
+            return new Response(JSON.stringify({ ok: true }), {
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
             })
           }
 

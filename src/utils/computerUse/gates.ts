@@ -1,8 +1,11 @@
-import type { CoordinateMode, CuSubGates } from '@ant/computer-use-mcp/types'
+import type { CoordinateMode, CuSubGates } from '../../vendor/computer-use-mcp/types.js'
 
-import { getDynamicConfig_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
-import { getSubscriptionType } from '../auth.js'
-import { isEnvTruthy } from '../envUtils.js'
+/**
+ * Computer Use feature gates. Replaces the original GrowthBook-based
+ * gating (`tengu_malort_pedway` + Max/Pro subscription check) with
+ * local configuration. No remote feature flags, no subscription tier
+ * requirements — Computer Use is available to all LegnaCode users.
+ */
 
 type ChicagoConfig = CuSubGates & {
   enabled: boolean
@@ -10,7 +13,7 @@ type ChicagoConfig = CuSubGates & {
 }
 
 const DEFAULTS: ChicagoConfig = {
-  enabled: false,
+  enabled: true,
   pixelValidation: false,
   clipboardPasteMultiline: true,
   mouseAnimation: true,
@@ -20,41 +23,20 @@ const DEFAULTS: ChicagoConfig = {
   coordinateMode: 'pixels',
 }
 
-// Spread over defaults so a partial JSON ({"enabled": true} alone) inherits the
-// rest. The generic on getDynamicConfig is a type assertion, not a validator —
-// GB returning a partial object would otherwise surface undefined fields.
 function readConfig(): ChicagoConfig {
-  return {
-    ...DEFAULTS,
-    ...getDynamicConfig_CACHED_MAY_BE_STALE<Partial<ChicagoConfig>>(
-      'tengu_malort_pedway',
-      DEFAULTS,
-    ),
+  // Read from settings.json if available, otherwise use defaults
+  try {
+    const { getGlobalSettings } = require('../envUtils.js')
+    const settings = getGlobalSettings?.() || {}
+    const cuConfig = settings.computerUse || {}
+    return { ...DEFAULTS, ...cuConfig }
+  } catch {
+    return DEFAULTS
   }
-}
-
-// Max/Pro only for external rollout. Ant bypass so dogfooding continues
-// regardless of subscription tier — not all ants are max/pro, and per
-// LEGNA.md:281, USER_TYPE !== 'ant' branches get zero antfooding.
-function hasRequiredSubscription(): boolean {
-  if (process.env.USER_TYPE === 'ant') return true
-  const tier = getSubscriptionType()
-  return tier === 'max' || tier === 'pro'
 }
 
 export function getChicagoEnabled(): boolean {
-  // Disable for ants whose shell inherited monorepo dev config.
-  // MONOREPO_ROOT_DIR is exported by config/local/zsh/zshrc, which
-  // laptop-setup.sh wires into ~/.zshrc — its presence is the cheap
-  // proxy for "has monorepo access". Override: ALLOW_ANT_COMPUTER_USE_MCP=1.
-  if (
-    process.env.USER_TYPE === 'ant' &&
-    process.env.MONOREPO_ROOT_DIR &&
-    !isEnvTruthy(process.env.ALLOW_ANT_COMPUTER_USE_MCP)
-  ) {
-    return false
-  }
-  return hasRequiredSubscription() && readConfig().enabled
+  return readConfig().enabled
 }
 
 export function getChicagoSubGates(): CuSubGates {
@@ -63,8 +45,9 @@ export function getChicagoSubGates(): CuSubGates {
 }
 
 // Frozen at first read — setup.ts builds tool descriptions and executor.ts
-// scales coordinates off the same value. A live read here lets a mid-session
-// GB flip tell the model "pixels" while transforming clicks as normalized.
+// scales coordinates off the same value. A live read here would let a
+// mid-session config change tell the model "pixels" while transforming
+// clicks as normalized.
 let frozenCoordinateMode: CoordinateMode | undefined
 export function getChicagoCoordinateMode(): CoordinateMode {
   frozenCoordinateMode ??= readConfig().coordinateMode

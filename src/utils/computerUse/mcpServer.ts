@@ -1,7 +1,5 @@
-import {
-  buildComputerUseTools,
-  createComputerUseMcpServer,
-} from '@ant/computer-use-mcp'
+import { buildComputerUseTools } from '../../vendor/computer-use-mcp/tools.js'
+import { createComputerUseMcpServer } from '../../vendor/computer-use-mcp/mcpServer.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js'
 import { homedir } from 'os'

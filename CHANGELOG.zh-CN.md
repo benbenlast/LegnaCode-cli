@@ -2,6 +2,19 @@
 
 All notable changes to LegnaCode CLI will be documented in this file.
 
+## [1.9.1] - 2026-04-25
+
+### 新功能
+
+- **Computer Use Python 桥接** — 用纯 Python 子进程桥接（`runtime/mac_helper.py` + `runtime/win_helper.py`）替代原生 Swift/Rust 模块（`@ant/computer-use-swift` + `@ant/computer-use-input`）。零 NAPI 依赖。支持 28 个命令：截图、鼠标、键盘、应用管理、剪贴板、权限检测。跨平台：macOS 和 Windows。
+- **Python 环境自动设置** — 首次使用 Computer Use 时自动检测系统 Python 3.12+，在 `~/.legna/computer-use-venv/` 创建虚拟环境并安装平台对应依赖。搜索顺序：`LEGNA_PYTHON_BIN` 环境变量 → `python3.14`..`python3.12` → `python3`/`python` → Windows `py` 启动器。依赖变更时自动重装。
+- **平台分离依赖** — 将 `requirements.txt` 拆分为 `requirements-macos.txt`（pyobjc）、`requirements-windows.txt`（pywin32/psutil/screeninfo/pyperclip）、`requirements-common.txt`（mss/Pillow/pyautogui）。
+
+### 改进
+
+- **Feature Gate 全面解锁** — 移除所有 GrowthBook 远程 feature flag 和 Max/Pro 订阅检查。Computer Use 改由本地 `settings.json` 控制（`computerUse.enabled`，默认 `true`），所有用户可用。
+- **Executor 大幅简化** — `executor.ts` 从约 800 行重写为约 200 行。无 CFRunLoop drain、无 NAPI、无鼠标动画——纯子进程 I/O。
+
 ## [1.9.0] - 2026-04-24
 
 ### 新功能
