@@ -2,6 +2,20 @@
 
 All notable changes to LegnaCode CLI will be documented in this file.
 
+## [1.9.9] - 2026-04-26
+
+### 新功能
+
+- **Admin 预设配置模板** — "从预设创建"按钮，内置 7 家 Provider 模板。创建后自动切换。
+- **ANTHROPIC_MODEL 设置字段** — 最高优先级模型覆盖。
+- **后端 profiles/create API** — `POST /api/:scope/profiles/create { filename, content }`。
+
+### 修复
+
+- **Bash Exit Code 65 — 彻底修复** — 禁用所有 sandbox 包装路径：native Rust addon（`sandboxAddon = null`）、Seatbelt fallback（`wrapCommand` 直接返回 `none`）、`sandbox-adapter.ts` native 路径。`(deny default)` Seatbelt profile 阻止了所有命令。命令安全由 TS 权限层处理。
+- **迁移自动补全 ANTHROPIC_MODEL** — 从 Claude Code 迁移时自动用 OPUS 值填充。
+- **compile-all.ts 自动复制 Addon** — 从 `src/native/` 和 `native/*/` 双源复制。
+
 ## [1.9.5] - 2026-04-26
 
 ### 新功能

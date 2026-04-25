@@ -113,37 +113,8 @@ export function wrapCommand(
   command: string,
   options: WrapOptions,
 ): { wrapped: string; method: 'native' | 'seatbelt' | 'bwrap' | 'unshare' | 'none' } {
-  const caps = detectSandboxCapabilities()
-
-  // Prefer Rust native addon (Level 3) — delegates to platform-specific kernel sandbox
-  if (caps.hasNativeAddon) {
-    // Native addon handles sandboxing internally via sandboxBinding.ts
-    // The command is passed through; actual isolation happens in the Rust layer
-    return { wrapped: command, method: 'native' }
-  }
-
-  if (caps.hasSeatbelt) {
-    return {
-      wrapped: wrapWithSeatbelt(command, options.workingDir),
-      method: 'seatbelt',
-    }
-  }
-
-  if (caps.hasBwrap) {
-    return {
-      wrapped: wrapWithBwrap(command, options.workingDir),
-      method: 'bwrap',
-    }
-  }
-
-  if (caps.hasUnshare && options.networkIsolation) {
-    return {
-      wrapped: wrapWithUnshare(command),
-      method: 'unshare',
-    }
-  }
-
-  // No sandbox available — passthrough
+  // All sandbox wrapping disabled — Seatbelt (deny default) caused exit code 65
+  // on all commands. Safety handled at TS permission layer (bashPermissions.ts).
   return { wrapped: command, method: 'none' }
 }
 

@@ -4,6 +4,20 @@
 
 All notable changes to LegnaCode CLI will be documented in this file.
 
+## [1.9.9] - 2026-04-26
+
+### Features
+
+- **Admin Preset Profile Templates** — "从预设创建" button with 7 provider templates. Creates file and auto-switches.
+- **ANTHROPIC_MODEL Settings Field** — Highest-priority model override in admin settings panel.
+- **Backend profiles/create API** — `POST /api/:scope/profiles/create { filename, content }`.
+
+### Fixes
+
+- **Bash Exit Code 65 — Complete Fix** — Disabled all sandbox wrapping paths: native Rust addon (`sandboxAddon = null`), Seatbelt fallback (`wrapCommand` returns `none`), and `sandbox-adapter.ts` native path. The `(deny default)` Seatbelt profile was blocking all commands including `ls`, `echo`, `pwd`. Command safety handled at TS permission layer.
+- **Migration Auto-Fill ANTHROPIC_MODEL** — Auto-fills from OPUS value when migrating Claude Code configs.
+- **compile-all.ts Auto-Copy Addons** — Copies `.node` addons from both `src/native/` and `native/*/`.
+
 ## [1.9.5] - 2026-04-26
 
 ### Features

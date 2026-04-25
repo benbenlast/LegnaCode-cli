@@ -8,8 +8,8 @@
  *   bun run scripts/compile-all.ts
  */
 
-import { readFileSync, mkdirSync, writeFileSync, renameSync, copyFileSync, rmSync } from "fs";
-import { resolve } from "path";
+import { readFileSync, mkdirSync, writeFileSync, renameSync, copyFileSync, rmSync, readdirSync, existsSync } from "fs";
+import { resolve, join } from "path";
 
 const ROOT = resolve(import.meta.dir, "..");
 
@@ -107,6 +107,37 @@ for (const t of targets) {
   );
 
   console.log(`  → ${dest}`);
+
+  // Copy native NAPI addons (.node files) for this platform
+  // Check both src/native/ (committed) and native/*/  (napi build output)
+  const nativeDir = resolve(ROOT, "src/native");
+  const nativeBuildDirs = ["sandbox", "file-search", "apply-patch"].map(n => resolve(ROOT, "native", n));
+  const platformSuffix = `${t.os === 'darwin' ? 'darwin' : t.os === 'linux' ? 'linux' : 'win32'}-${t.cpu}`;
+
+  // Source 1: src/native/ (pre-committed addons)
+  if (existsSync(nativeDir)) {
+    for (const f of readdirSync(nativeDir)) {
+      if (f.endsWith(`.${platformSuffix}.node`)) {
+        const addonSrc = join(nativeDir, f);
+        const addonDest = join(binDir, f);
+        copyFileSync(addonSrc, addonDest);
+        console.log(`  → ${addonDest} (native addon)`);
+      }
+    }
+  }
+
+  // Source 2: native/*/ (napi build output — takes precedence over src/native/)
+  for (const buildDir of nativeBuildDirs) {
+    if (!existsSync(buildDir)) continue;
+    for (const f of readdirSync(buildDir)) {
+      if (f.endsWith(`.${platformSuffix}.node`)) {
+        const addonSrc = join(buildDir, f);
+        const addonDest = join(binDir, f);
+        copyFileSync(addonSrc, addonDest);
+        console.log(`  → ${addonDest} (native addon, fresh build)`);
+      }
+    }
+  }
 }
 
 console.log("\nAll platforms compiled.");
