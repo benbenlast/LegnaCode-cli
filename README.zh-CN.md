@@ -9,7 +9,7 @@
 [![license](https://img.shields.io/badge/license-MIT-yellow)](./LICENSE)
 [![Claude Code](https://img.shields.io/badge/based%20on-Claude%20Code-blueviolet)](https://github.com/anthropics/claude-code)
 
-🌐 [English](./README.md) · 📊 [对比 Claude Code](./COMPARISON.zh-CN.md) · 📋 [更新日志](./CHANGELOG.zh-CN.md)
+🌐 [English](./README.md) · 🛠️ [开发者文档](./developer.md) · 📊 [对比 Claude Code](./COMPARISON.zh-CN.md) · 📋 [更新日志](./CHANGELOG.zh-CN.md)
 
 <img width="855" height="319" alt="image" src="https://github.com/user-attachments/assets/6e94a216-e382-49df-aa2f-63fb96336614" />
 
