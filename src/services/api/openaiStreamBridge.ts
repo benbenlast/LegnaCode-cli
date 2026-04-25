@@ -136,9 +136,18 @@ export async function* openAIStreamingRequest(
       logForDebugging(`[openai-bridge] Model refusal: ${delta.refusal}`)
     }
 
-    // --- Reasoning/thinking content (DeepSeek, Kimi, Qwen) ---
-    // Non-standard field: some CN providers put thinking in reasoning_content
-    if (delta.reasoning_content != null && delta.reasoning_content !== '') {
+    // --- Reasoning/thinking content ---
+    // DeepSeek/Kimi: delta.reasoning_content (string)
+    // MiniMax: delta.reasoning_details (array of {text: string})
+    // Qwen: <think>...</think> tags in delta.content (handled below in text section)
+    const thinkingText =
+      (delta.reasoning_content != null && delta.reasoning_content !== '')
+        ? delta.reasoning_content
+        : Array.isArray(delta.reasoning_details)
+          ? delta.reasoning_details.map((d: any) => d?.text ?? '').join('')
+          : null
+
+    if (thinkingText) {
       if (!thinkingBlockOpen) {
         yield {
           type: 'content_block_start',
