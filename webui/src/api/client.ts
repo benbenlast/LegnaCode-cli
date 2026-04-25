@@ -50,6 +50,13 @@ export function cloneProfile(scope: Scope, source: string, target: string) {
   })
 }
 
+export function createProfile(scope: Scope, filename: string, content: Record<string, any>) {
+  return request<{ ok: boolean; filename: string }>(`/api/${scope}/profiles/create`, {
+    method: 'POST',
+    body: JSON.stringify({ filename, content }),
+  })
+}
+
 export interface Session {
   id: string
   project: string

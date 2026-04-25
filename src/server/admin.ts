@@ -181,6 +181,23 @@ async function handleApi(req: Request, url: URL): Promise<Response> {
     }
   }
 
+  // POST /api/:scope/profiles/create — create new profile with preset content
+  if (sub === 'profiles/create' && method === 'POST') {
+    const { filename, content } = await req.json() as { filename: string; content: Record<string, any> }
+    if (!filename || !filename.startsWith('settings') || !filename.endsWith('.json')) {
+      return err('文件名必须以 settings 开头，.json 结尾', 400)
+    }
+    const dstPath = join(dir, filename)
+    if (existsSync(dstPath)) return err('目标文件已存在', 409)
+    try {
+      mkdirSync(dir, { recursive: true })
+      writeFileSync(dstPath, JSON.stringify(content, null, 2) + '\n')
+      return json({ ok: true, filename })
+    } catch (e: any) {
+      return err(e.message, 500)
+    }
+  }
+
   // GET /api/:scope/sessions
   if (sub === 'sessions' && method === 'GET') {
     const limit = parseInt(url.searchParams.get('limit') || '50', 10)
