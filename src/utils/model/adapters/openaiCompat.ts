@@ -139,6 +139,16 @@ function normalizeBaseUrl(url: string): string {
   return u
 }
 
+/**
+ * Derive OpenAI base URL from ANTHROPIC_BASE_URL by stripping /anthropic suffix.
+ * e.g. https://api.deepseek.com/anthropic → https://api.deepseek.com
+ */
+function deriveOpenAIBaseUrl(): string | undefined {
+  const anthropicBase = process.env.ANTHROPIC_BASE_URL
+  if (!anthropicBase) return undefined
+  return anthropicBase.replace(/\/anthropic\/?$/, '')
+}
+
 /** Check if OpenAI compat mode is active */
 export function isOpenAICompatActive(): boolean {
   return !!(process.env.OPENAI_COMPAT_BASE_URL || process.env.OPENAI_COMPAT_API_KEY)
@@ -147,16 +157,31 @@ export function isOpenAICompatActive(): boolean {
 /**
  * Transform Anthropic Messages API params into OpenAI Chat Completions params.
  * This is the core bridge — called instead of sending to Anthropic API.
+ *
+ * URL resolution priority:
+ *   1. options.baseUrl (explicit override)
+ *   2. OPENAI_COMPAT_BASE_URL env var
+ *   3. Derived from ANTHROPIC_BASE_URL (strip /anthropic suffix)
+ *   4. Fallback: http://localhost:11434/v1
  */
-export function anthropicToOpenAI(params: Record<string, any>): {
+export function anthropicToOpenAI(params: Record<string, any>, options?: {
+  baseUrl?: string
+  apiKey?: string
+}): {
   url: string
   headers: Record<string, string>
   body: Record<string, any>
 } {
   const baseUrl = normalizeBaseUrl(
-    process.env.OPENAI_COMPAT_BASE_URL || 'http://localhost:11434/v1'
+    options?.baseUrl
+      || process.env.OPENAI_COMPAT_BASE_URL
+      || deriveOpenAIBaseUrl()
+      || 'http://localhost:11434/v1'
   )
-  const apiKey = process.env.OPENAI_COMPAT_API_KEY || 'ollama'
+  const apiKey = options?.apiKey
+    || process.env.OPENAI_COMPAT_API_KEY
+    || process.env.ANTHROPIC_API_KEY
+    || 'ollama'
 
   // Convert messages
   const openaiMessages: OpenAIMessage[] = []

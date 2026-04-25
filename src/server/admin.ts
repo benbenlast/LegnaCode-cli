@@ -130,7 +130,8 @@ async function handleApi(req: Request, url: URL): Promise<Response> {
   // GET /api/:scope/settings
   if (sub === 'settings' && method === 'GET') {
     try {
-      const data = JSON.parse(readFileSync(join(dir, 'settings.json'), 'utf-8'))
+      const activeFile = getActiveProfile(dir)
+      const data = JSON.parse(readFileSync(join(dir, activeFile), 'utf-8'))
       return json(data)
     } catch {
       return json({})
@@ -141,7 +142,13 @@ async function handleApi(req: Request, url: URL): Promise<Response> {
   if (sub === 'settings' && method === 'PUT') {
     const body = await req.json()
     mkdirSync(dir, { recursive: true })
-    writeFileSync(join(dir, 'settings.json'), JSON.stringify(body, null, 2) + '\n')
+    const activeFile = getActiveProfile(dir)
+    writeFileSync(join(dir, activeFile), JSON.stringify(body, null, 2) + '\n')
+    // If active profile IS settings.json, no sync needed.
+    // If it's a different file, also sync to settings.json so CLI picks it up.
+    if (activeFile !== 'settings.json') {
+      writeFileSync(join(dir, 'settings.json'), JSON.stringify(body, null, 2) + '\n')
+    }
     return json({ ok: true })
   }
 

@@ -33,6 +33,7 @@ const DEEPSEEK_HOST = 'api.deepseek.com'
 
 export const DeepSeekAdapter: ModelAdapter = {
   name: 'DeepSeek',
+  apiFormat: 'auto',
 
   match(model: string, baseUrl?: string): boolean {
     if (model.startsWith(DEEPSEEK_MODEL_PREFIX)) return true

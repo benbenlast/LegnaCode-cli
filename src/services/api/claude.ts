@@ -861,6 +861,15 @@ export async function* executeNonStreamingRequest(
       )
 
       try {
+        // OpenAI-compatible routing for non-streaming requests
+        if ((retryParams as any).__openaiCompat) {
+          const { openAINonStreamingRequest } = await import('./openaiStreamBridge.js')
+          return await openAINonStreamingRequest(
+            { ...adjustedParams, model: normalizeModelStringForAPI(adjustedParams.model) },
+            retryOptions.signal!,
+          ) as any
+        }
+
         // biome-ignore lint/plugin: non-streaming API call
         return await anthropic.beta.messages.create(
           {
@@ -1823,6 +1832,18 @@ async function* queryModel(
         // BetaMessageStream calls partialParse() on every input_json_delta, which we don't need
         // since we handle tool input accumulation ourselves
         // biome-ignore lint/plugin: main conversation loop handles attribution separately
+
+        // OpenAI-compatible routing: when __openaiCompat is set, use fetch-based
+        // bridge instead of Anthropic SDK. The bridge yields identical event types.
+        if (params.__openaiCompat) {
+          const { openAIStreamingRequest } = await import('./openaiStreamBridge.js')
+          const { __openaiCompat: _, ...cleanParams } = params
+          queryCheckpoint('query_response_headers_received')
+          streamRequestId = null
+          streamResponse = null as any
+          return openAIStreamingRequest(cleanParams, signal) as any
+        }
+
         const result = await anthropic.beta.messages
           .create(
             { ...params, stream: true },

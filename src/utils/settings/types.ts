@@ -640,6 +640,13 @@ export const SettingsSchema = lazySchema(() =>
         .string()
         .optional()
         .describe('Controls the output style for assistant responses'),
+      apiFormat: z
+        .enum(['anthropic', 'openai'])
+        .optional()
+        .describe(
+          'API format for model communication. "anthropic" uses Anthropic Messages API (default). ' +
+            '"openai" uses OpenAI Chat Completions API format — requests are translated and responses converted back.',
+        ),
       language: z
         .string()
         .optional()

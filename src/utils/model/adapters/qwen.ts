@@ -48,6 +48,7 @@ function isQwen3(model: string): boolean {
 
 export const QwenAdapter: ModelAdapter = {
   name: 'Qwen (Alibaba)',
+  apiFormat: 'auto',
 
   match(model: string, baseUrl?: string): boolean {
     if (QWEN_PREFIXES.some(p => model.startsWith(p))) return true

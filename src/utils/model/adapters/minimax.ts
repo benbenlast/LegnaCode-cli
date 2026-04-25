@@ -39,6 +39,7 @@ const MINIMAX_HOSTS = ['api.minimaxi.com', 'api.minimax.io']
 
 export const MiniMaxAdapter: ModelAdapter = {
   name: 'MiniMax',
+  apiFormat: 'auto',
 
   match(model: string, baseUrl?: string): boolean {
     if (MINIMAX_MODEL_RE.test(model)) return true

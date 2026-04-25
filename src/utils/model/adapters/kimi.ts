@@ -35,6 +35,7 @@ const KIMI_HOSTS = ['api.moonshot.ai', 'api.moonshot.cn']
 
 export const KimiAdapter: ModelAdapter = {
   name: 'Kimi (Moonshot)',
+  apiFormat: 'auto',
 
   match(model: string, baseUrl?: string): boolean {
     if (model.startsWith(KIMI_MODEL_PREFIX)) return true

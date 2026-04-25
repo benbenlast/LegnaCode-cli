@@ -5,14 +5,25 @@
  * API request params before they're sent. Adapters are matched by model name
  * prefix — only the first matching adapter is applied.
  *
- * To add a new provider adapter:
- * 1. Create src/utils/model/adapters/<provider>.ts implementing ModelAdapter
- * 2. Register it in ADAPTERS below
+ * API format routing: each adapter declares `apiFormat` ('anthropic' | 'openai')
+ * to indicate the wire format. When 'openai', the request is routed through
+ * the OpenAI bridge (fetch-based) instead of the Anthropic SDK. Auto-detection
+ * from ANTHROPIC_BASE_URL is supported: URLs ending in /anthropic → 'anthropic',
+ * otherwise → 'openai'.
  */
 
 export interface ModelAdapter {
   /** Human-readable provider name */
   name: string
+
+  /**
+   * Default API format for this adapter.
+   * - 'anthropic': use Anthropic Messages API (default for all adapters)
+   * - 'openai': use OpenAI Chat Completions API
+   * - 'auto': infer from base URL — /anthropic suffix → anthropic, else openai
+   * Omit or undefined = 'anthropic'.
+   */
+  apiFormat?: 'anthropic' | 'openai' | 'auto'
 
   /** Return true if this adapter should handle the given model */
   match(model: string, baseUrl?: string): boolean
@@ -74,14 +85,59 @@ export function getModelAdapter(model: string): ModelAdapter | null {
 }
 
 /**
+ * Resolve the effective API format for a matched adapter.
+ *
+ * Priority:
+ *   1. settings.json `apiFormat` (explicit user override)
+ *   2. adapter.apiFormat declaration
+ *   3. auto-detect from ANTHROPIC_BASE_URL (/anthropic suffix → anthropic, else openai)
+ *   4. default: 'anthropic'
+ */
+function resolveApiFormat(adapter: ModelAdapter | null): 'anthropic' | 'openai' {
+  // 1. User override from settings
+  try {
+    const { getGlobalSettings } = require('../../envUtils.js')
+    const settings = getGlobalSettings?.() ?? {}
+    if (settings.apiFormat === 'openai' || settings.apiFormat === 'anthropic') {
+      return settings.apiFormat
+    }
+  } catch {}
+
+  if (!adapter) return 'anthropic'
+
+  const declared = adapter.apiFormat ?? 'anthropic'
+
+  // 2. Explicit adapter declaration
+  if (declared === 'anthropic' || declared === 'openai') return declared
+
+  // 3. Auto-detect from base URL
+  if (declared === 'auto') {
+    const baseUrl = process.env.ANTHROPIC_BASE_URL ?? ''
+    return /\/anthropic\/?$/.test(baseUrl) ? 'anthropic' : 'openai'
+  }
+
+  return 'anthropic'
+}
+
+/**
  * Apply model-specific transformations to API request params.
  * Called at the end of paramsFromContext() in claude.ts.
  * Returns the original params if no adapter matches.
+ *
+ * Resolves API format from adapter declaration, settings, or URL auto-detection.
+ * When format is 'openai', appends `__openaiCompat: true` so the API layer
+ * routes through the OpenAI bridge instead of Anthropic SDK.
  */
 export function applyModelAdapter(params: Record<string, any>): Record<string, any> {
   const adapter = getModelAdapter(params.model)
-  if (!adapter) return params
-  return adapter.transformParams(params)
+  let result = adapter ? adapter.transformParams(params) : params
+
+  // If adapter already set __openaiCompat (e.g. OpenAICompatAdapter), skip
+  if (!result.__openaiCompat && resolveApiFormat(adapter) === 'openai') {
+    result = { ...result, __openaiCompat: true }
+  }
+
+  return result
 }
 
 /**

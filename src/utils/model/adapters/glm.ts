@@ -36,6 +36,7 @@ const GLM_HOST = 'open.bigmodel.cn'
 
 export const GLMAdapter: ModelAdapter = {
   name: 'GLM (ZhipuAI)',
+  apiFormat: 'auto',
 
   match(model: string, baseUrl?: string): boolean {
     if (model.startsWith(GLM_MODEL_PREFIX)) return true

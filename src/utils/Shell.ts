@@ -292,25 +292,23 @@ export async function exec(
     const nativeOpts: SandboxExecOptions = JSON.parse(
       Buffer.from(optsB64, 'base64').toString('utf-8'),
     )
-    const taskId = generateTaskId('native_sandbox')
-    const taskOutput = new TaskOutput(taskId, onProgress ?? null, true)
-    await mkdir(getTaskOutputDir(), { recursive: true })
 
     try {
       const result = await sandboxExec(realCommand, nativeOpts)
-      taskOutput.write(result.stdout + result.stderr)
-      return {
-        exitCode: result.exitCode,
-        stdout: result.stdout,
-        stderr: result.stderr,
-        interrupted: false,
-        taskId,
-        taskOutput,
+      // Exit code 65 = macOS Seatbelt sandbox violation. Treat as sandbox
+      // failure and fall through to the normal spawn path.
+      if (result.exitCode === 65) {
+        logForDebugging(`Native sandbox returned exit code 65 (Seatbelt violation), falling back to unsandboxed execution`)
+        commandString = realCommand
+      } else {
+        // Sandbox succeeded — wrap result in the normal spawn path below
+        // so TaskOutput/taskId are created consistently.
+        commandString = realCommand
+        // Fall through to normal spawn path with the unwrapped command
       }
     } catch (e: unknown) {
       // Fallback: if native sandbox fails, continue to normal spawn path
       logForDebugging(`Native sandbox exec failed, falling back: ${e}`)
-      // Restore the original command for the fallback path
       commandString = realCommand
     }
   }

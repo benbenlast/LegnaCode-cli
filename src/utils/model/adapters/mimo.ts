@@ -36,6 +36,7 @@ const MIMO_HOST = 'api.xiaomimimo.com'
 
 export const MiMoAdapter: ModelAdapter = {
   name: 'MiMo (Xiaomi)',
+  apiFormat: 'auto',
 
   match(model: string, baseUrl?: string): boolean {
     if (MIMO_MODELS.some(m => model.startsWith(m))) return true
