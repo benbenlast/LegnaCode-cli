@@ -301,10 +301,18 @@ export async function exec(
         logForDebugging(`Native sandbox returned exit code 65 (Seatbelt violation), falling back to unsandboxed execution`)
         commandString = realCommand
       } else {
-        // Sandbox succeeded — wrap result in the normal spawn path below
-        // so TaskOutput/taskId are created consistently.
-        commandString = realCommand
-        // Fall through to normal spawn path with the unwrapped command
+        // Sandbox succeeded — return result directly via normal task output path
+        const taskId = generateTaskId('local_bash')
+        const taskOutput = new TaskOutput(taskId, onProgress ?? null, true)
+        await mkdir(getTaskOutputDir(), { recursive: true })
+        taskOutput.appendToFile(result.stdout + result.stderr)
+        taskOutput.close()
+        return {
+          stdout: result.stdout,
+          stderr: result.stderr,
+          exitCode: result.exitCode,
+          interrupted: false,
+        }
       }
     } catch (e: unknown) {
       // Fallback: if native sandbox fails, continue to normal spawn path
