@@ -14,6 +14,11 @@ interface SettingField {
 }
 
 const FIELDS: SettingField[] = [
+  { key: 'apiFormat', label: 'API 路由模式', type: 'select', options: [
+    { value: '', label: '自动 (根据 URL 推断)' },
+    { value: 'anthropic', label: 'Anthropic Messages API' },
+    { value: 'openai', label: 'OpenAI Chat Completions API' },
+  ]},
   { key: 'env.ANTHROPIC_BASE_URL', label: 'API 端点', type: 'text', nested: 'env.ANTHROPIC_BASE_URL' },
   { key: 'env.ANTHROPIC_AUTH_TOKEN', label: 'API Key', type: 'password', nested: 'env.ANTHROPIC_AUTH_TOKEN' },
   { key: 'model', label: '默认模型层级', type: 'text' },
