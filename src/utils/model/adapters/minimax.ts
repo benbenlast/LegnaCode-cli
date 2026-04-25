@@ -1,28 +1,35 @@
 /**
  * MiniMax model adapter.
  *
- * MiniMax provides Anthropic-compatible endpoints:
- *   - China:  https://api.minimaxi.com/anthropic
- *   - Global: https://api.minimax.io/anthropic
+ * MiniMax provides dual API endpoints:
+ *   - Anthropic (China):  https://api.minimaxi.com/anthropic
+ *   - Anthropic (Global): https://api.minimax.io/anthropic
+ *   - OpenAI (China):     https://api.minimaxi.com/v1
+ *   - OpenAI (Global):    https://api.minimax.io/v1
  *
- * Differences from standard Anthropic API:
+ * apiFormat: 'auto' — detects from ANTHROPIC_BASE_URL:
+ *   /anthropic suffix → Anthropic SDK, otherwise → OpenAI fetch bridge
  *
- * 1. thinking: supports enabled/disabled — no budget_tokens/adaptive
- * 2. tool_choice: fully supported — no need to force auto
- * 3. tools.type: must be "custom"
- * 4. betas: not supported — strip
- * 5. metadata: fully supported — keep
- * 6. cache_control: fully supported (Anthropic prompt caching format) — keep
- * 7. top_p: fully supported — keep user/system value, don't inject
- * 8. temperature: (0.0, 1.0] — doesn't accept 0, but thinking mode skips it
- *    and non-thinking defaults to 1, so no special handling needed
- * 9. speed/output_config/context_management: not supported — strip
- * 10. top_k/stop_sequences/service_tier: silently ignored by server
- * 11. Response: thinking blocks may appear after text — reorder
+ * Anthropic API compatibility (from MiniMax docs):
+ *   - model: MiniMax-M2.7, M2.7-highspeed, M2.5, M2.5-highspeed, M2.1, M2.1-highspeed, M2
+ *   - thinking: fully supported
+ *   - metadata: fully supported
+ *   - tool_choice: fully supported
+ *   - tools: fully supported
+ *   - cache_control: fully supported (Anthropic prompt caching format)
+ *   - temperature: (0.0, 1.0], recommended 1.0
+ *   - top_k/stop_sequences/service_tier/mcp_servers/context_management/container: ignored
+ *   - image/document: not supported
+ *   - Response: thinking blocks may appear after text — reorder
  *
- * Models: MiniMax-M2.7, MiniMax-M2.7-highspeed, MiniMax-M2.5,
- *         MiniMax-M2.5-highspeed, MiniMax-M2.1, MiniMax-M2.1-highspeed,
- *         MiniMax-M2 (all 204,800 ctx)
+ * OpenAI API compatibility:
+ *   - reasoning_split=True in extra_body to separate thinking into reasoning_details
+ *   - reasoning_details field in streaming delta for thinking content
+ *   - temperature: (0.0, 1.0], recommended 1.0
+ *   - n: only supports 1
+ *   - presence_penalty/frequency_penalty/logit_bias: ignored
+ *
+ * All models: 204,800 context window
  */
 
 import type { ModelAdapter } from './index.js'
@@ -31,6 +38,7 @@ import {
   normalizeToolsKeepCache,
   stripBetas,
   stripUnsupportedFieldsKeepMetadata,
+  stripUnsupportedContentBlocks,
   reorderThinkingBlocks,
 } from './shared.js'
 
@@ -55,6 +63,7 @@ export const MiniMaxAdapter: ModelAdapter = {
     normalizeToolsKeepCache(out)
     stripBetas(out)
     stripUnsupportedFieldsKeepMetadata(out)
+    stripUnsupportedContentBlocks(out)
     return out
   },
 
