@@ -505,16 +505,20 @@ def paste_clipboard() -> None:
 
 
 def detect_screen_recording_permission() -> bool | None:
-    """Best-effort passive screen-recording probe with no system prompt.
+    """Screen-recording probe that triggers the system prompt if not granted.
 
-    `CGPreflightScreenCaptureAccess()` is fast and explicit when it returns
-    True, but on child processes launched by a TCC-authorized app bundle it can
-    still return False. As a fallback, inspect the visible window list: Apple
-    only exposes other apps' window titles when Screen Recording access is
-    granted. If we can see at least one title, treat the permission as granted.
-    If we can inspect visible windows but every title is blank, treat it as not
-    granted. If window enumeration itself is unavailable, return None.
+    Calls CGRequestScreenCaptureAccess() first — this triggers the macOS
+    authorization dialog on first use. Then checks with CGPreflightScreenCaptureAccess().
+    Falls back to window-title visibility probe for child processes where
+    the preflight API is unreliable.
     """
+
+    # Trigger the system prompt if not yet granted
+    try:
+        from Quartz import CGRequestScreenCaptureAccess
+        CGRequestScreenCaptureAccess()
+    except (ImportError, Exception):
+        pass
 
     try:
         if CGPreflightScreenCaptureAccess():
@@ -555,21 +559,27 @@ def detect_screen_recording_permission() -> bool | None:
 def detect_accessibility_permission() -> bool:
     """
     Use the official macOS Accessibility trust API.
-
-    The previous System Events / AppleScript probe was too weak: it could
-    succeed even when the current helper process was not actually trusted for
-    input control, which led the desktop UI to report Accessibility as granted
-    while mouse/keyboard control still failed at runtime.
+    Calls AXIsProcessTrustedWithOptions with kAXTrustedCheckOptionPrompt=True
+    to trigger the system authorization prompt if not yet granted.
     """
     framework_path = "/System/Library/Frameworks/ApplicationServices.framework/ApplicationServices"
     try:
         application_services = ctypes.CDLL(framework_path)
-        application_services.AXIsProcessTrusted.restype = ctypes.c_bool
-        application_services.AXIsProcessTrusted.argtypes = []
-        return bool(application_services.AXIsProcessTrusted())
+        # First try with prompt — triggers system dialog if not trusted
+        try:
+            from CoreFoundation import CFStringCreateWithCString, kCFStringEncodingUTF8, kCFAllocatorDefault
+            from Foundation import NSDictionary
+            key = CFStringCreateWithCString(kCFAllocatorDefault, b"AXTrustedCheckOptionPrompt", kCFStringEncodingUTF8)
+            opts = NSDictionary.dictionaryWithObject_forKey_(True, key)
+            application_services.AXIsProcessTrustedWithOptions.restype = ctypes.c_bool
+            application_services.AXIsProcessTrustedWithOptions.argtypes = [ctypes.c_void_p]
+            return bool(application_services.AXIsProcessTrustedWithOptions(ctypes.c_void_p(opts.__c_void_p__())))
+        except Exception:
+            # Fallback: check without prompt
+            application_services.AXIsProcessTrusted.restype = ctypes.c_bool
+            application_services.AXIsProcessTrusted.argtypes = []
+            return bool(application_services.AXIsProcessTrusted())
     except Exception:
-        # Fail closed: if the trust API can't be queried, treat accessibility
-        # as unavailable instead of reporting a misleading success state.
         return False
 
 

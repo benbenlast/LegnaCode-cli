@@ -51,9 +51,33 @@ export function getComputerUseHostAdapter(): ComputerUseHostAdapter {
         }>('check_permissions')
         const accessibility = perms.accessibility === true
         const screenRecording = perms.screenRecording === true
-        return accessibility && screenRecording
-          ? { granted: true }
-          : { granted: false, accessibility, screenRecording }
+
+        if (accessibility && screenRecording) {
+          return { granted: true }
+        }
+
+        // Guide user to grant permissions on macOS
+        if (process.platform === 'darwin') {
+          const missing: string[] = []
+          if (!accessibility) missing.push('Accessibility (辅助功能)')
+          if (!screenRecording) missing.push('Screen Recording (屏幕录制)')
+          logForDebugging(
+            `[computer-use] Missing macOS permissions: ${missing.join(', ')}. ` +
+            `Opening System Settings...`,
+          )
+          // Open the relevant System Settings pane
+          try {
+            const { execFile: ef } = require('child_process')
+            if (!accessibility) {
+              ef('open', ['x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility'])
+            }
+            if (!screenRecording) {
+              ef('open', ['x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture'])
+            }
+          } catch {}
+        }
+
+        return { granted: false, accessibility, screenRecording }
       } catch {
         return { granted: false, accessibility: false, screenRecording: false }
       }
