@@ -1,22 +1,34 @@
 /**
  * Kimi (Moonshot AI) model adapter.
  *
- * Moonshot provides an Anthropic-compatible API at api.moonshot.ai/anthropic.
- * Key differences from standard Anthropic API:
+ * Kimi provides dual API endpoints:
+ *   - OpenAI:    https://api.moonshot.cn/v1/chat/completions
+ *   - Anthropic: https://api.moonshot.cn/anthropic (via proxy, or via DashScope/百炼)
  *
- * 1. thinking: only { type: "enabled" | "disabled" } — no budget_tokens/adaptive
- *    - kimi-k2-thinking-turbo: always_thinking, cannot be disabled
- * 2. tool_choice: force "auto" (tool_search may cause 400 errors)
- * 3. tools.type: "custom"
- * 4. betas: not supported
- * 5. top_p: supported — do NOT inject a default (keep Kimi's own default)
- * 6. reasoning_content: strip from assistant messages (same as DeepSeek)
- * 7. metadata/speed/output_config/context_management: not supported
- * 8. cache_control: KEEP — Kimi supports prompt caching with discount pricing
- * 9. Response: thinking blocks may appear after text — reorder
+ * apiFormat: 'auto' — detects from ANTHROPIC_BASE_URL:
+ *   /anthropic suffix → Anthropic SDK, otherwise → OpenAI fetch bridge
  *
- * Models: kimi-k2, kimi-k2.5 (multimodal, 256K ctx), kimi-k2-turbo-preview,
- *         kimi-k2-thinking-turbo (always_thinking), kimi-for-coding / kimi-code
+ * OpenAI API details:
+ *   - kimi-k2.6: temperature/top_p NOT modifiable (server ignores), thinking supported
+ *   - kimi-k2 series: temperature default 0.6, top_p default 1.0
+ *   - kimi-k2-thinking series: temperature default 1.0, always-on reasoning
+ *   - thinking: { type: "enabled" | "disabled" } via extra_body (OpenAI SDK)
+ *   - reasoning_content: returned in delta for thinking models
+ *   - tool_choice: only "auto"
+ *   - finish_reason: stop, tool_calls, length
+ *   - No reasoning_content passback requirement documented
+ *
+ * Anthropic API compatibility:
+ *   - thinking: { type: "enabled" | "disabled" } — no budget_tokens/adaptive
+ *   - tool_choice: force "auto"
+ *   - tools.type: "custom"
+ *   - cache_control: supported (prompt caching with discount pricing)
+ *   - reasoning_content: strip from assistant messages
+ *   - betas/metadata/speed/output_config/context_management: not supported
+ *
+ * Models: kimi-k2.6 (latest, thinking), kimi-k2.5 (multimodal, 256K ctx),
+ *   kimi-k2, kimi-k2-turbo-preview, kimi-k2-thinking-turbo (always_thinking),
+ *   kimi-for-coding / kimi-code, moonshot-v1-* (legacy)
  */
 
 import type { ModelAdapter } from './index.js'
@@ -27,10 +39,12 @@ import {
   stripBetas,
   stripUnsupportedFields,
   stripReasoningContent,
+  stripUnsupportedContentBlocks,
   reorderThinkingBlocks,
 } from './shared.js'
 
 const KIMI_MODEL_PREFIX = 'kimi-'
+const MOONSHOT_MODEL_PREFIX = 'moonshot-'
 const KIMI_HOSTS = ['api.moonshot.ai', 'api.moonshot.cn']
 
 export const KimiAdapter: ModelAdapter = {
@@ -38,7 +52,7 @@ export const KimiAdapter: ModelAdapter = {
   apiFormat: 'auto',
 
   match(model: string, baseUrl?: string): boolean {
-    if (model.startsWith(KIMI_MODEL_PREFIX)) return true
+    if (model.startsWith(KIMI_MODEL_PREFIX) || model.startsWith(MOONSHOT_MODEL_PREFIX)) return true
     if (baseUrl) {
       try { return KIMI_HOSTS.includes(new URL(baseUrl).host) } catch {}
     }
@@ -53,7 +67,8 @@ export const KimiAdapter: ModelAdapter = {
     stripBetas(out)
     stripUnsupportedFields(out)
     stripReasoningContent(out)
-    // No injectTopP — keep Kimi's own default
+    stripUnsupportedContentBlocks(out)
+    // No injectTopP — kimi-k2.6 ignores it, others have their own defaults
     // No stripCacheControl — Kimi supports prompt caching
     return out
   },
