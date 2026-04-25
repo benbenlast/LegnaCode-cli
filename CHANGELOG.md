@@ -4,6 +4,18 @@
 
 All notable changes to LegnaCode CLI will be documented in this file.
 
+## [1.9.5] - 2026-04-26
+
+### Features
+
+- **Admin Preset Profile Templates** — "从预设创建" button in profiles panel with 7 provider templates (DeepSeek, Kimi, GLM, Qwen, MiniMax, MiMo, Anthropic). Each preset pre-fills `env.ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL`, `ANTHROPIC_MODEL`, `ANTHROPIC_DEFAULT_HAIKU/SONNET/OPUS_MODEL`. Creates file and auto-switches to it.
+- **ANTHROPIC_MODEL Settings Field** — Admin settings panel now exposes `env.ANTHROPIC_MODEL` ("指定模型 — 覆盖所有层级"), the highest-priority model override. Separate from the `model` alias field (sonnet/opus/haiku).
+- **Backend profiles/create API** — `POST /api/:scope/profiles/create { filename, content }` creates a new settings file with preset content.
+
+### Fixes
+
+- **Migration Auto-Fill ANTHROPIC_MODEL** — When migrating from Claude Code configs that have `ANTHROPIC_DEFAULT_OPUS_MODEL` but no `ANTHROPIC_MODEL`, the migration now auto-fills `ANTHROPIC_MODEL` from the OPUS value. Without this, the CLI defaults to `claude-opus-4-6` which fails on third-party providers.
+
 ## [1.9.4] - 2026-04-25
 
 ### Fixes
