@@ -4,17 +4,21 @@
 
 All notable changes to LegnaCode CLI will be documented in this file.
 
-## [2.0.0] - 2026-04-26
+## [2.0.3] - 2026-04-27
 
 ### Features
 
-- **Kiro Gateway Client-Side History Optimization** — New `kiroGateway` setting enables client-side history compression before sending to Kiro Gateway. Aligned with Gateway's converter.py: thinking blocks truncated (distance>5, 2000c/60l), tool_result truncated (distance>8, 8000c/150l), images replaced with placeholders, redacted_thinking removed, JSON schemas normalized (whitelist filtering, anyOf/oneOf flattening, empty required removal), tool descriptions capped at 9216 chars.
-- **Admin Profile Inline Editing** — Each profile card now has an "编辑" button that expands an inline settings editor for that specific file. No need to switch profiles to edit them.
-- **Profile-Specific API** — `GET/PUT /api/:scope/profiles/:filename` for reading/writing individual profile files.
+- **Kiro Gateway Client-Side History Optimization** — New `kiroGateway` setting enables client-side history compression aligned with Gateway's converter.py (thinking/tool_result truncation, schema normalization).
+- **Admin Profile Inline Editing** — Each profile card has an "编辑" button for inline settings editing. Profile-specific API: `GET/PUT /api/:scope/profiles/:filename`.
+- **Admin Preset Templates** — 7 provider presets (DeepSeek, Kimi, GLM, Qwen, MiniMax, MiMo, Anthropic).
+- **ANTHROPIC_MODEL Settings Field** — Highest-priority model override in admin settings panel.
 
 ### Fixes
 
-- **Bash Sandbox Completely Removed** — Disabled native sandbox addon (`sandboxAddon = null`), Seatbelt fallback (`wrapCommand` returns `none`), and `sandbox-adapter.ts` native path. The `(deny default)` Seatbelt profile was blocking all commands. Command safety handled at TS permission layer.
+- **Model Allowlist Removed** — `isModelAllowed()` always returns true. Third-party providers use arbitrary model names that would never pass a Claude-centric allowlist.
+- **count_tokens API Disabled** — Both `countMessagesTokensWithAPI` and `countTokensViaHaikuFallback` return null unconditionally. The `/v1/messages/count_tokens` endpoint is not supported by third-party providers and causes 403 errors.
+- **Bash Sandbox Removed** — Disabled native sandbox addon, Seatbelt fallback, and sandbox-adapter native path.
+- **Migration Auto-Fill ANTHROPIC_MODEL** — Auto-fills from OPUS value when migrating Claude Code configs.
 
 ## [1.9.9] - 2026-04-26
 

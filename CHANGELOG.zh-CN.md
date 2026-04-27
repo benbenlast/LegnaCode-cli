@@ -2,17 +2,21 @@
 
 All notable changes to LegnaCode CLI will be documented in this file.
 
-## [2.0.0] - 2026-04-26
+## [2.0.3] - 2026-04-27
 
 ### 新功能
 
-- **Kiro Gateway 客户端历史压缩** — 新增 `kiroGateway` 设置，启用后在发送前压缩历史消息。对齐 Gateway converter.py：thinking 截断（distance>5, 2000c/60l）、tool_result 截断（distance>8, 8000c/150l）、图片替换占位、redacted_thinking 删除、JSON schema 白名单过滤 + anyOf/oneOf 降级 + 空 required 删除、工具描述截断 9216 字符。
-- **Admin 配置文件内联编辑** — 每个 profile 卡片新增"编辑"按钮，展开内联设置编辑器，直接编辑该文件。
-- **Profile 读写 API** — `GET/PUT /api/:scope/profiles/:filename` 读写指定配置文件。
+- **Kiro Gateway 客户端历史压缩** — 新增 `kiroGateway` 设置，对齐 Gateway converter.py 压缩逻辑（thinking/tool_result 截断、schema 精简）。
+- **Admin 配置文件内联编辑** — 每个 profile 卡片新增"编辑"按钮。Profile 读写 API：`GET/PUT /api/:scope/profiles/:filename`。
+- **Admin 预设模板** — 7 家 Provider 预设（DeepSeek、Kimi、GLM、Qwen、MiniMax、MiMo、Anthropic）。
+- **ANTHROPIC_MODEL 设置字段** — 最高优先级模型覆盖。
 
 ### 修复
 
-- **Bash Sandbox 彻底移除** — 禁用 native sandbox addon、Seatbelt fallback、sandbox-adapter native 路径。命令安全由 TS 权限层处理。
+- **模型白名单移除** — `isModelAllowed()` 始终返回 true。第三方 Provider 使用任意模型名。
+- **count_tokens API 禁用** — `countMessagesTokensWithAPI` 和 `countTokensViaHaikuFallback` 无条件返回 null。第三方不支持 `/v1/messages/count_tokens`，调用会导致 403。
+- **Bash Sandbox 移除** — 禁用 native sandbox addon、Seatbelt fallback、sandbox-adapter native 路径。
+- **迁移自动补全 ANTHROPIC_MODEL** — 从 Claude Code 迁移时自动用 OPUS 值填充。
 
 ## [1.9.9] - 2026-04-26
 
