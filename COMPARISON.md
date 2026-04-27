@@ -24,10 +24,15 @@
 | GCP Vertex | ✅ | ✅ |
 | Azure OpenAI | ❌ | ✅ |
 | MiniMax deep native integration | ❌ | ✅ 6 multimodal tools auto-registered |
-| OpenAI-compatible bridge | ❌ | ✅ Any `/v1/chat/completions` endpoint (Ollama/vLLM/LM Studio) |
-| DeepSeek / Qwen / GLM / SiliconFlow | ❌ | ✅ Via OpenAI-compat bridge + dedicated adapters |
+| OpenAI-compatible bridge | ❌ | ✅ Full streaming bridge with SSE→Anthropic event translation |
+| Auto API format detection | ❌ | ✅ URL-based: `/anthropic` suffix → Anthropic SDK, else → OpenAI fetch |
+| `apiFormat` setting | ❌ | ✅ Force Anthropic or OpenAI per profile, or auto-detect |
+| DeepSeek / Qwen / GLM / Kimi / MiMo | ❌ | ✅ 7 dedicated adapters, dual-endpoint (Anthropic + OpenAI) |
+| reasoning_content passback | ❌ | ✅ Auto-extracts thinking blocks for DeepSeek/Kimi/MiMo multi-turn |
+| MiniMax reasoning_details | ❌ | ✅ Array format thinking content in OpenAI streaming |
+| Provider-specific finish_reason | ❌ | ✅ sensitive (GLM), repetition_truncation (MiMo), content_filter |
 | Intelligent model routing | ❌ | ✅ Auto-selects model tier by prompt complexity |
-| Model Adapter architecture | Partial | ✅ 8 adapters (DeepSeek/GLM/Kimi/MiMo/MiniMax/Qwen/OpenAI-compat) |
+| Model Adapter architecture | Partial | ✅ 7 adapters + OpenAI-compat bridge, per-adapter apiFormat |
 | JSON repair for weak models | ❌ | ✅ Fixes markdown fences, trailing commas, unbalanced brackets |
 
 ## Multimodal (MiniMax-exclusive)
@@ -121,8 +126,11 @@
 |---------|:-----------:|:---------:|
 | Global config directory | `~/.claude/` | `~/.legna/` (auto-migrated) |
 | WebUI admin panel | ❌ | ✅ `legna admin` |
+| WebUI profile inline editing | ❌ | ✅ Edit any profile directly from card, per-file read/write API |
+| WebUI preset templates | ❌ | ✅ 7 provider presets (DeepSeek/Kimi/GLM/Qwen/MiniMax/MiMo/Anthropic) |
 | WebUI chat viewer | ❌ | ✅ Session replay with thinking/tool call visualization |
 | WebUI live chat | ❌ | ✅ SSE streaming chat for API connectivity testing (single-turn only) |
+| Kiro Gateway optimization | ❌ | ✅ Client-side history compression (thinking/tool_result/schema) |
 | Config migration tool | ❌ | ✅ `legna migrate` |
 | MiniMax authentication | ❌ | ✅ `/auth-minimax` |
 | Pure TS syntax highlighting | ❌ Requires native modules | ✅ Zero native dependencies |

@@ -2,6 +2,156 @@
 
 All notable changes to LegnaCode CLI will be documented in this file.
 
+## [2.0.4] - 2026-04-27
+
+### 新功能
+
+- **OpenAI Responses API 桥接** — 新增 `apiFormat: "responses"` 设置，支持 Codex 兼容中转站（`/v1/responses` 协议）。完整流式 + 非流式支持，自动转换为 Anthropic 事件流。
+- **Admin 配置热加载** — 内联编辑活跃 profile 保存后自动同步 `settings.json`，CLI 无需切换即可生效。
+- **Admin UI 自动刷新** — 保存后 profile 列表自动刷新，立即显示更新后的端点/模型信息。
+
+### 修复
+
+- **getGlobalSettings 死代码修复** — 3 处调用（`claude.ts`、`adapters/index.ts`、`gates.ts`）引用了不存在的函数，改为 `getInitialSettings()`。`kiroGateway` 开关现在真正生效。
+
+## [2.0.3] - 2026-04-27
+
+### 新功能
+
+- **Kiro Gateway 客户端历史压缩** — 新增 `kiroGateway` 设置，对齐 Gateway converter.py 压缩逻辑（thinking/tool_result 截断、schema 精简）。
+- **Admin 配置文件内联编辑** — 每个 profile 卡片新增"编辑"按钮。Profile 读写 API：`GET/PUT /api/:scope/profiles/:filename`。
+- **Admin 预设模板** — 7 家 Provider 预设（DeepSeek、Kimi、GLM、Qwen、MiniMax、MiMo、Anthropic）。
+- **ANTHROPIC_MODEL 设置字段** — 最高优先级模型覆盖。
+
+### 修复
+
+- **模型白名单移除** — `isModelAllowed()` 始终返回 true。第三方 Provider 使用任意模型名。
+- **count_tokens API 禁用** — `countMessagesTokensWithAPI` 和 `countTokensViaHaikuFallback` 无条件返回 null。第三方不支持 `/v1/messages/count_tokens`，调用会导致 403。
+- **Bash Sandbox 移除** — 禁用 native sandbox addon、Seatbelt fallback、sandbox-adapter native 路径。
+- **迁移自动补全 ANTHROPIC_MODEL** — 从 Claude Code 迁移时自动用 OPUS 值填充。
+
+## [1.9.9] - 2026-04-26
+
+### 新功能
+
+- **Admin 预设配置模板** — "从预设创建"按钮，内置 7 家 Provider 模板。创建后自动切换。
+- **ANTHROPIC_MODEL 设置字段** — 最高优先级模型覆盖。
+- **后端 profiles/create API** — `POST /api/:scope/profiles/create { filename, content }`。
+
+### 修复
+
+- **Bash Exit Code 65 — 彻底修复** — 禁用所有 sandbox 包装路径：native Rust addon（`sandboxAddon = null`）、Seatbelt fallback（`wrapCommand` 直接返回 `none`）、`sandbox-adapter.ts` native 路径。`(deny default)` Seatbelt profile 阻止了所有命令。命令安全由 TS 权限层处理。
+- **迁移自动补全 ANTHROPIC_MODEL** — 从 Claude Code 迁移时自动用 OPUS 值填充。
+- **compile-all.ts 自动复制 Addon** — 从 `src/native/` 和 `native/*/` 双源复制。
+
+## [1.9.5] - 2026-04-26
+
+### 新功能
+
+- **Admin 预设配置模板** — 配置文件面板新增"从预设创建"按钮，内置 7 家 Provider 模板（DeepSeek、Kimi、GLM、Qwen、MiniMax、MiMo、Anthropic）。每个预设预填 `env.ANTHROPIC_AUTH_TOKEN`、`ANTHROPIC_BASE_URL`、`ANTHROPIC_MODEL`、`ANTHROPIC_DEFAULT_HAIKU/SONNET/OPUS_MODEL`。创建后自动切换。
+- **ANTHROPIC_MODEL 设置字段** — Admin 设置面板新增 `env.ANTHROPIC_MODEL`（"指定模型 — 覆盖所有层级"），这是最高优先级的模型覆盖。与 `model` 别名字段（sonnet/opus/haiku）分开显示。
+- **后端 profiles/create API** — `POST /api/:scope/profiles/create { filename, content }` 创建新配置文件并写入预设内容。
+
+### 修复
+
+- **迁移自动补全 ANTHROPIC_MODEL** — 从 Claude Code 迁移的配置如果有 `ANTHROPIC_DEFAULT_OPUS_MODEL` 但没有 `ANTHROPIC_MODEL`，迁移时自动用 OPUS 的值填充。否则 CLI 默认使用 `claude-opus-4-6`，在第三方 Provider 上会失败。
+
+## [1.9.4] - 2026-04-25
+
+### 修复
+
+- **macOS Seatbelt 沙盒重写** — 将 `(deny default)` 替换为 `(allow default)` 策略。沙盒现在仅拒绝对关键系统路径（`/System`、`/usr`、`/bin`、`/sbin`）和用户配置的 `protected_paths` 的写入。普通 shell 命令不再受阻——彻底消除 exit code 65。
+- **Shell.ts 沙盒返回路径** — 恢复了 v1.9.3 中意外删除的沙盒成功执行返回语句，该问题导致命令跳过沙盒结果并重新以无沙盒方式执行。
+
+## [1.9.3] - 2026-04-25
+
+### 新功能
+
+- **OpenAI 兼容 API 路由** — 新增 `apiFormat` 设置项（'anthropic' | 'openai' | 自动），支持将请求路由到 OpenAI Chat Completions API。每个适配器声明 `apiFormat: 'auto'`，根据 base URL 自动推断：`/anthropic` 后缀走 Anthropic SDK，否则走 OpenAI fetch 桥接。6 个国产适配器默认自动模式。
+- **OpenAI 流式桥接** — 新建 `openaiStreamBridge.ts`，将 OpenAI SSE 流转换为 Anthropic 事件格式。处理 `delta.content`、`delta.tool_calls`、`delta.reasoning_content`（DeepSeek/Kimi/MiMo）、`delta.reasoning_details`（MiniMax）。下游代码（工具执行、会话存储）看到完全相同的事件——零改动。
+- **Admin 配置复制** — 配置文件列表每个卡片新增"复制"按钮，内联表单自动带 `settings-` 前缀和 `.json` 后缀。后端：`POST /api/:scope/profiles/clone`。
+- **Admin API 路由选择器** — 设置面板新增"API 路由模式"下拉框：自动（根据 URL 推断）、Anthropic、OpenAI。
+
+### 改进
+
+- **适配器深度对齐** — 7 个适配器（DeepSeek、MiniMax、Qwen、GLM、Kimi、MiMo、OpenAICompat）全部按官方 API 文档更新：
+  - DeepSeek：双端点、模型列表（v4-flash/v4-pro）、保留 `output_config.effort`、`reasoning_content` 回传
+  - MiniMax：双端点（中国/全球 + Token Plan）、`reasoning_details` 数组格式、`stripUnsupportedContentBlocks`
+  - Qwen/百炼：北京/新加坡/Coding Plan URL、`coding.dashscope.aliyuncs.com` 主机匹配、qwen3.6-* 前缀
+  - GLM/智谱：OpenAI + Anthropic + Coding Plan URL、`sensitive`/`network_error`/`model_context_window_exceeded` 终止原因、`cached_tokens` 支持
+  - Kimi/月之暗面：kimi-k2.6（thinking、不可修改 temp/top_p）、`moonshot-v1-*` 前缀、Preserved Thinking（`thinking.keep: "all"`）
+  - MiMo/小米：mimo-v2.5-pro/v2.5 模型、Token Plan 主机、`repetition_truncation` 终止原因
+- **OpenAI SDK 类型对齐** — 参照 OpenAI SDK v6.34.0 类型定义修正：`Delta.ToolCall.index` 必填、`Delta.content` 可空、`function_call` 废弃终止原因、`stream_options.include_usage`、`Delta.refusal` 处理。
+- **共享适配器工具** — `stripUnsupportedContentBlocks` 过滤 image/document/server_tool_use/redacted_thinking。`forceAutoToolChoice` 删除 `disable_parallel_tool_use`。`stripUnsupportedFields` 保留 `output_config.effort`。
+- **API Key 解析** — OpenAI 桥接现在使用 `getAnthropicApiKey()` 统一认证路径（settings.json → 环境变量 → keychain），不再直接读 `process.env`。
+
+### 修复
+
+- **Bash Exit Code 65** — macOS Seatbelt sandbox 因 profile 过于严格返回 exit code 65。`Shell.ts` 现在检测到 65 后回退到普通 spawn 路径。
+- **Admin 配置文件** — `GET/PUT /api/:scope/settings` 现在读写活跃 profile 文件（通过 `getActiveProfile()`），不再硬编码 `settings.json`。
+- **设计提示词误触发** — 收窄中文关键词检测范围，将宽泛的单字词（界面、组件、页面）替换为复合词（前端开发、UI组件、页面设计）。
+- **Computer Use 自动启用** — 移除 `DEFAULT_DISABLED_BUILTIN` 白名单机制，不再需要手动 opt-in。
+- **reasoning_content 回传** — DeepSeek/Kimi OpenAI 端点要求 thinking 模式的 `reasoning_content` 必须回传。`convertAnthropicToOpenAI` 现在提取 thinking blocks 并设置到 assistant 消息上。
+
+## [1.9.2] - 2026-04-25
+
+### 新功能
+
+- **Computer Use Python 桥接** — 用纯 Python 子进程桥接（`runtime/mac_helper.py` + `runtime/win_helper.py`）替代原生 Swift/Rust 模块（`@ant/computer-use-swift` + `@ant/computer-use-input`）。零 NAPI 依赖。支持 28 个命令：截图、鼠标、键盘、应用管理、剪贴板、权限检测。跨平台：macOS 和 Windows。
+- **Python 环境自动设置** — 首次使用 Computer Use 时自动检测系统 Python 3.12+，在 `~/.legna/computer-use-venv/` 创建虚拟环境并安装平台对应依赖。搜索顺序：`LEGNA_PYTHON_BIN` 环境变量 → `python3.14`..`python3.12` → `python3`/`python` → Windows `py` 启动器。依赖变更时自动重装。
+- **平台分离依赖** — 将 `requirements.txt` 拆分为 `requirements-macos.txt`（pyobjc）、`requirements-windows.txt`（pywin32/psutil/screeninfo/pyperclip）、`requirements-common.txt`（mss/Pillow/pyautogui）。
+
+### 改进
+
+- **Feature Gate 全面解锁** — 移除所有 GrowthBook 远程 feature flag 和 Max/Pro 订阅检查。Computer Use 改由本地 `settings.json` 控制（`computerUse.enabled`，默认 `true`），所有用户可用。
+- **Executor 大幅简化** — `executor.ts` 从约 800 行重写为约 200 行。无 CFRunLoop drain、无 NAPI、无鼠标动画——纯子进程 I/O。
+
+## [1.9.0] - 2026-04-24
+
+### 新功能
+
+- **可移植会话** — 迁移后的会话 JSONL 使用 `"cwd":"."` 相对路径。项目可随意移动、拷贝或通过 git 同步——在任何位置都能 resume。运行时在 `sessionStorage.ts`、`crossProjectResume.ts`、`listSessionsImpl.ts` 共 5 处自动将 `"."` 解析为当前工作目录。
+- **WebUI 项目浏览器** — 新增"项目总览"标签页，卡片式布局展示 `~/.claude/` 和 `~/.legna/` 下所有项目。显示会话数、最后活跃时间、迁移状态、来源（Claude/Legna/Both）。路径不存在的项目标红警告。
+- **WebUI 记忆编辑器** — 三栏布局：项目列表 → 文件树（支持子文件夹展开/折叠）→ Markdown 编辑器。顶部横幅："记忆是 AI 的建议性笔记，随项目演进自动更新，内容仅供参考"。
+- **WebUI 力导向关系图谱** — 交互式项目关系可视化，物理模拟（斥力 + 引力 + 中心重力 + 阻尼）。节点可拖拽。节点大小 = 会话数，颜色 = 活跃度，连线 = 同日活跃，显示权重标签。
+- **完整项目迁移** — 迁移内容包括：sessions（JSONL + subagents/ + tool-results/）、memory、skills/、agents/、rules/、CLAUDE.md → LEGNA.md、settings.json、.mcp.json。路径重写支持 Windows 反斜杠、空格、特殊字符、JSON 转义路径。
+- **多来源迁移** — 扫描 `~/.claude/projects/` 和 `~/.legna/projects/`，从 JSONL 的 `cwd` 字段读取真实路径（不再用 `-` 替换 `/`，修复 `claude-code-main` 被错误解析为 `claude/code/main` 的问题）。
+- **配置指针切换** — 配置文件切换改用 `.active-profile` 指针文件，不再物理重命名文件，原始文件名永久保留。
+
+### 改进
+
+- **迁移面板重设计** — 双标签布局："项目迁移"（项目级勾选、来源标签、状态标签）和"配置同步"（字段级选择、图标、可折叠 JSON 预览）。
+- **MCP 配置迁移** — 全局 `~/.claude/.mcp.json` 和项目级 `.claude/.mcp.json` 纳入迁移范围。
+- **Co-Authored-By 归属** — 从 `noreply@anthropic.com` 改为 `@LegnaOS` 贡献者身份。
+
+## [1.8.5] - 2026-04-23
+
+### 优化
+
+- **工具提示词压缩** — 压缩 BashTool（~21K→~12K 字符）、AgentTool（~16K→~13K 字符）、TodoWriteTool（~9.5K→~2K 字符）、EnterPlanModeTool（~7.7K→~2K 字符）的工具描述。首次请求 token 消耗减少约 8,000-10,000 tokens。
+
+### 修复
+
+- **模型适配器 cache_control 修复** — 在 `src/utils/model/adapters/shared.ts` 新增 `normalizeToolsKeepCache()` 变体，保留工具定义上的 `cache_control`。Kimi、MiniMax、MiMo 适配器改用此函数，修复 `normalizeTools()` 静默删除工具级提示缓存的问题。MiMo 适配器同时移除不必要的 `stripCacheControl()`，因其 API 支持服务端自动缓存。
+
+## [1.8.4] - 2026-04-22
+
+### 修复
+
+- **会话转录空值守卫** — 为 `src/utils/sessionStorage.ts` 中 `isLoggableMessage`、`collectReplIds`、`transformMessagesForExternalTranscript` 添加防御性空值/类型检查。修复消息数组包含 undefined/null 元素时 `useLogMessages` React effect 中 `m4 is not an Object (evaluating '"isVirtual" in m4')` 崩溃。
+
+## [1.8.3] - 2026-04-22
+
+### 新功能
+
+- **GitHub Actions 自动发版工作流** — 4 阶段 CI 流水线：prepare（bump + webui）→ native（4 平台 Rust addon 编译）→ compile（7 个 Bun 交叉编译目标）→ publish（npm 发布）。通过 `v*` tag 推送或手动 `workflow_dispatch` 触发。
+- **全平台 Rust Native Addon** — CI 在原生 runner 上编译 `sandbox`、`file-search`、`apply-patch` NAPI 插件，覆盖 darwin-arm64、darwin-x64、linux-x64、linux-arm64。
+- **compile.ts --target 参数** — 支持交叉编译目标覆盖，供 CI 使用。
+
+### 修复
+
+- **OML Agent 类型不匹配** — 修复 OML 技能定义中 `agent` 字段传递对象 `{ type, model }` 而非字符串的问题。导致 19 个 OML agent 技能在 fork 模式下静默回退到 `general-purpose`。
+
 ## [1.8.2] - 2026-04-22
 
 ### 修复

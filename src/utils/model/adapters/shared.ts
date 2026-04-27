@@ -17,12 +17,15 @@ export function simplifyThinking(params: Record<string, any>): void {
   }
 }
 
-/** Force tool_choice to "auto", preserving disable_parallel_tool_use */
+/** Force tool_choice to "auto", stripping disable_parallel_tool_use (most providers ignore it) */
 export function forceAutoToolChoice(params: Record<string, any>): void {
-  if (!params.tool_choice || params.tool_choice.type === 'auto') return
-  const preserveParallel = params.tool_choice.disable_parallel_tool_use
+  if (!params.tool_choice || params.tool_choice.type === 'auto') {
+    if (params.tool_choice?.disable_parallel_tool_use) {
+      params.tool_choice = { type: 'auto' }
+    }
+    return
+  }
   params.tool_choice = { type: 'auto' }
-  if (preserveParallel) params.tool_choice.disable_parallel_tool_use = true
 }
 
 /** Add type:"custom" to tools and strip Anthropic-only extensions */
@@ -38,6 +41,18 @@ export function normalizeTools(params: Record<string, any>): void {
   }))
 }
 
+/** Like normalizeTools but preserves cache_control for providers that support it */
+export function normalizeToolsKeepCache(params: Record<string, any>): void {
+  if (!params.tools || !Array.isArray(params.tools)) return
+  params.tools = params.tools.map((tool: any) => ({
+    ...tool,
+    type: 'custom',
+    strict: undefined,
+    defer_loading: undefined,
+    eager_input_streaming: undefined,
+  }))
+}
+
 /** Strip beta headers */
 export function stripBetas(params: Record<string, any>): void {
   delete params.betas
@@ -47,7 +62,15 @@ export function stripBetas(params: Record<string, any>): void {
 export function stripUnsupportedFields(params: Record<string, any>): void {
   delete params.metadata
   delete params.speed
-  delete params.output_config
+  // Preserve output_config.effort if present (some providers support it)
+  if (params.output_config) {
+    const effort = params.output_config.effort
+    if (effort) {
+      params.output_config = { effort }
+    } else {
+      delete params.output_config
+    }
+  }
   delete params.context_management
 }
 
@@ -79,6 +102,26 @@ export function stripReasoningContent(params: Record<string, any>): void {
 export function stripReasonerSamplingParams(params: Record<string, any>): void {
   delete params.temperature
   delete params.top_p
+}
+
+/** Content block types supported by most Anthropic-compatible providers */
+const SUPPORTED_CONTENT_TYPES = new Set([
+  'text', 'thinking', 'tool_use', 'tool_result',
+])
+
+/** Strip unsupported content block types from messages (image, document, server_tool_use, etc.) */
+export function stripUnsupportedContentBlocks(params: Record<string, any>): void {
+  if (!params.messages || !Array.isArray(params.messages)) return
+  params.messages = params.messages.map((msg: any) => {
+    if (!Array.isArray(msg.content)) return msg
+    const filtered = msg.content.filter((block: any) => {
+      if (!block.type) return true
+      if (block.type === 'redacted_thinking') return false
+      return SUPPORTED_CONTENT_TYPES.has(block.type)
+    })
+    if (filtered.length === 0) return { ...msg, content: '' }
+    return { ...msg, content: filtered }
+  })
 }
 
 /** Strip cache_control from system and message content blocks */
@@ -138,5 +181,6 @@ export function applyStandardTransforms(params: Record<string, any>, topP = 0.95
   injectTopP(out, topP)
   stripUnsupportedFields(out)
   stripCacheControl(out)
+  stripUnsupportedContentBlocks(out)
   return out
 }

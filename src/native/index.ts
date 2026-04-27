@@ -45,7 +45,9 @@ interface SandboxAddon {
   sandboxExec(command: string, config: NativeSandboxConfig): NativeSandboxResult
 }
 
-export const sandboxAddon = tryLoadAddon<SandboxAddon>('sandbox')
+// Native sandbox disabled — Seatbelt (deny default) caused exit code 65 on all commands.
+// Safety handled at TS permission layer (BashTool/bashPermissions.ts).
+export const sandboxAddon = null
 
 // ── File Search addon ──────────────────────────────────────────
 

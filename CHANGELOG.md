@@ -4,6 +4,156 @@
 
 All notable changes to LegnaCode CLI will be documented in this file.
 
+## [2.0.4] - 2026-04-27
+
+### Features
+
+- **OpenAI Responses API Bridge** — New `apiFormat: "responses"` setting enables Codex-compatible providers (`/v1/responses` wire format). Full streaming + non-streaming support with Anthropic event translation.
+- **Admin Config Hot-Reload** — Saving an active profile via inline editor now syncs to `settings.json`, triggering CLI hot-reload without profile switch.
+- **Admin UI Auto-Refresh** — Profile list refreshes automatically after save, showing updated endpoint/model info immediately.
+
+### Fixes
+
+- **getGlobalSettings Dead Code** — All 3 call sites (`claude.ts`, `adapters/index.ts`, `gates.ts`) referenced a non-existent function. Fixed to use `getInitialSettings()` from settings.ts. This makes `kiroGateway` toggle actually work.
+
+## [2.0.3] - 2026-04-27
+
+### Features
+
+- **Kiro Gateway Client-Side History Optimization** — New `kiroGateway` setting enables client-side history compression aligned with Gateway's converter.py (thinking/tool_result truncation, schema normalization).
+- **Admin Profile Inline Editing** — Each profile card has an "编辑" button for inline settings editing. Profile-specific API: `GET/PUT /api/:scope/profiles/:filename`.
+- **Admin Preset Templates** — 7 provider presets (DeepSeek, Kimi, GLM, Qwen, MiniMax, MiMo, Anthropic).
+- **ANTHROPIC_MODEL Settings Field** — Highest-priority model override in admin settings panel.
+
+### Fixes
+
+- **Model Allowlist Removed** — `isModelAllowed()` always returns true. Third-party providers use arbitrary model names that would never pass a Claude-centric allowlist.
+- **count_tokens API Disabled** — Both `countMessagesTokensWithAPI` and `countTokensViaHaikuFallback` return null unconditionally. The `/v1/messages/count_tokens` endpoint is not supported by third-party providers and causes 403 errors.
+- **Bash Sandbox Removed** — Disabled native sandbox addon, Seatbelt fallback, and sandbox-adapter native path.
+- **Migration Auto-Fill ANTHROPIC_MODEL** — Auto-fills from OPUS value when migrating Claude Code configs.
+
+## [1.9.9] - 2026-04-26
+
+### Features
+
+- **Admin Preset Profile Templates** — "从预设创建" button with 7 provider templates. Creates file and auto-switches.
+- **ANTHROPIC_MODEL Settings Field** — Highest-priority model override in admin settings panel.
+- **Backend profiles/create API** — `POST /api/:scope/profiles/create { filename, content }`.
+
+### Fixes
+
+- **Bash Exit Code 65 — Complete Fix** — Disabled all sandbox wrapping paths: native Rust addon (`sandboxAddon = null`), Seatbelt fallback (`wrapCommand` returns `none`), and `sandbox-adapter.ts` native path. The `(deny default)` Seatbelt profile was blocking all commands including `ls`, `echo`, `pwd`. Command safety handled at TS permission layer.
+- **Migration Auto-Fill ANTHROPIC_MODEL** — Auto-fills from OPUS value when migrating Claude Code configs.
+- **compile-all.ts Auto-Copy Addons** — Copies `.node` addons from both `src/native/` and `native/*/`.
+
+## [1.9.5] - 2026-04-26
+
+### Features
+
+- **Admin Preset Profile Templates** — "从预设创建" button in profiles panel with 7 provider templates (DeepSeek, Kimi, GLM, Qwen, MiniMax, MiMo, Anthropic). Each preset pre-fills `env.ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL`, `ANTHROPIC_MODEL`, `ANTHROPIC_DEFAULT_HAIKU/SONNET/OPUS_MODEL`. Creates file and auto-switches to it.
+- **ANTHROPIC_MODEL Settings Field** — Admin settings panel now exposes `env.ANTHROPIC_MODEL` ("指定模型 — 覆盖所有层级"), the highest-priority model override. Separate from the `model` alias field (sonnet/opus/haiku).
+- **Backend profiles/create API** — `POST /api/:scope/profiles/create { filename, content }` creates a new settings file with preset content.
+
+### Fixes
+
+- **Migration Auto-Fill ANTHROPIC_MODEL** — When migrating from Claude Code configs that have `ANTHROPIC_DEFAULT_OPUS_MODEL` but no `ANTHROPIC_MODEL`, the migration now auto-fills `ANTHROPIC_MODEL` from the OPUS value. Without this, the CLI defaults to `claude-opus-4-6` which fails on third-party providers.
+
+## [1.9.4] - 2026-04-25
+
+### Fixes
+
+- **macOS Seatbelt Sandbox Rewrite** — Replaced `(deny default)` with `(allow default)` strategy. The sandbox now only denies writes to critical system paths (`/System`, `/usr`, `/bin`, `/sbin`) and user-configured `protected_paths`. Normal shell commands work without friction — no more exit code 65.
+- **Shell.ts Sandbox Return Path** — Restored the return statement for successful sandbox execution that was accidentally removed in v1.9.3, which caused commands to fall through and re-execute unsandboxed.
+
+## [1.9.3] - 2026-04-25
+
+### Features
+
+- **OpenAI-Compatible API Routing** — New `apiFormat` setting ('anthropic' | 'openai' | auto) enables routing requests through OpenAI Chat Completions API instead of Anthropic Messages API. Per-adapter `apiFormat: 'auto'` auto-detects from base URL: `/anthropic` suffix → Anthropic SDK, otherwise → OpenAI fetch bridge. All 6 CN adapters default to auto.
+- **OpenAI Streaming Bridge** — New `openaiStreamBridge.ts` translates OpenAI SSE stream into Anthropic event format. Handles `delta.content`, `delta.tool_calls`, `delta.reasoning_content` (DeepSeek/Kimi/MiMo), `delta.reasoning_details` (MiniMax). Downstream code (tool execution, session storage) sees identical events — zero changes needed.
+- **Admin Profile Clone** — New "复制" button on each profile card in admin WebUI. Inline form with auto-prefixed `settings-` and `.json` suffix. Backend: `POST /api/:scope/profiles/clone`.
+- **Admin API Route Selector** — Settings panel now shows "API 路由模式" dropdown: Auto (URL-based), Anthropic, or OpenAI.
+
+### Improvements
+
+- **Deep Adapter Alignment** — All 7 adapters (DeepSeek, MiniMax, Qwen, GLM, Kimi, MiMo, OpenAICompat) updated per official API docs:
+  - DeepSeek: dual endpoints, model list (v4-flash/v4-pro), `output_config.effort` preserved, `reasoning_content` passback
+  - MiniMax: dual endpoints (China/Global + Token Plan), `reasoning_details` array format, `stripUnsupportedContentBlocks`
+  - Qwen/DashScope: Beijing/Singapore/Coding Plan URLs, `coding.dashscope.aliyuncs.com` host, qwen3.6-* prefix
+  - GLM/ZhipuAI: OpenAI + Anthropic + Coding Plan URLs, `sensitive`/`network_error`/`model_context_window_exceeded` finish reasons, `cached_tokens` support
+  - Kimi/Moonshot: kimi-k2.6 (thinking, immutable temp/top_p), `moonshot-v1-*` prefix, Preserved Thinking (`thinking.keep: "all"`)
+  - MiMo/Xiaomi: mimo-v2.5-pro/v2.5 models, Token Plan host, `repetition_truncation` finish reason
+- **OpenAI SDK Type Alignment** — Reviewed OpenAI SDK v6.34.0 types: `Delta.ToolCall.index` required, `Delta.content` nullable, `function_call` deprecated finish reason, `stream_options.include_usage`, `Delta.refusal` handling.
+- **Shared Adapter Utilities** — `stripUnsupportedContentBlocks` filters image/document/server_tool_use/redacted_thinking. `forceAutoToolChoice` strips `disable_parallel_tool_use`. `stripUnsupportedFields` preserves `output_config.effort`.
+- **API Key Resolution** — OpenAI bridge now uses `getAnthropicApiKey()` unified auth path (settings.json → env → keychain) instead of raw `process.env`.
+
+### Fixes
+
+- **Bash Exit Code 65** — macOS Seatbelt sandbox returns exit code 65 due to overly restrictive profile. `Shell.ts` now detects this and falls through to unsandboxed spawn path.
+- **Admin Settings Profile** — `GET/PUT /api/:scope/settings` now reads/writes the active profile file (via `getActiveProfile()`) instead of hardcoded `settings.json`.
+- **Design Prompt False Positives** — Narrowed Chinese keyword detection for design prompt injection. Replaced broad single-character words (界面, 组件, 页面) with compound terms (前端开发, UI组件, 页面设计).
+- **Computer Use Auto-Enable** — Removed `DEFAULT_DISABLED_BUILTIN` whitelist that required manual opt-in via `enabledMcpServers`.
+- **reasoning_content Passback** — DeepSeek/Kimi OpenAI endpoints require `reasoning_content` from thinking mode to be passed back. `convertAnthropicToOpenAI` now extracts thinking blocks and sets them on assistant messages.
+
+## [1.9.2] - 2026-04-25
+
+### Features
+
+- **Computer Use Python Bridge** — Replaced native Swift/Rust modules (`@ant/computer-use-swift` + `@ant/computer-use-input`) with pure Python subprocess bridge (`runtime/mac_helper.py` + `runtime/win_helper.py`). Zero NAPI dependencies. Supports 28 commands: screenshot, mouse, keyboard, app management, clipboard, permission detection. Cross-platform: macOS and Windows.
+- **Auto Python Environment Setup** — First Computer Use invocation automatically detects system Python 3.12+, creates a venv at `~/.legna/computer-use-venv/`, installs platform-specific dependencies. Search order: `LEGNA_PYTHON_BIN` env → `python3.14`..`python3.12` → `python3`/`python` → Windows `py` launcher. Requirements hash invalidation triggers reinstall on dependency changes.
+- **Platform-Specific Dependencies** — Split `requirements.txt` into `requirements-macos.txt` (pyobjc), `requirements-windows.txt` (pywin32/psutil/screeninfo/pyperclip), `requirements-common.txt` (mss/Pillow/pyautogui).
+
+### Improvements
+
+- **Feature Gate Removal** — Removed all GrowthBook remote feature flags and Max/Pro subscription checks for Computer Use. Now controlled by local `settings.json` (`computerUse.enabled`, default `true`). Available to all users.
+- **Executor Simplification** — `executor.ts` rewritten from ~800 lines to ~200 lines. No CFRunLoop drain, no NAPI, no animated mouse movement — pure subprocess I/O.
+
+## [1.9.0] - 2026-04-24
+
+### Features
+
+- **Portable Sessions** — Migrated session JSONL files use `"cwd":"."` relative paths instead of absolute paths. Projects can be moved, copied, or synced via git — resume works from any location. Runtime resolves `"."` to current working directory at 5 points in `sessionStorage.ts`, `crossProjectResume.ts`, and `listSessionsImpl.ts`.
+- **WebUI Project Browser** — New "项目总览" tab with card layout showing all projects from `~/.claude/` and `~/.legna/`. Displays session count, last active time, migration status, source (Claude/Legna/Both). Missing paths highlighted in red.
+- **WebUI Memory Editor** — Three-column layout: project list → file tree with expand/collapse for subdirectories → Markdown editor. Banner: "记忆是 AI 的建议性笔记，随项目演进自动更新，内容仅供参考".
+- **WebUI Force-Directed Graph** — Interactive project relationship visualization with physics simulation (repulsion + attraction + center gravity + damping). Draggable nodes. Node size = session count, color = recency, edges = same-day activity with weight labels.
+- **Full Project Migration** — Migrates sessions (JSONL + subagents/ + tool-results/), memory, skills/, agents/, rules/, CLAUDE.md → LEGNA.md, settings.json, .mcp.json. Path rewriting handles Windows backslash, spaces, special characters, JSON-escaped paths.
+- **Multi-Source Migration** — Scans `~/.claude/projects/`, `~/.legna/projects/` with correct path resolution from JSONL `cwd` field (no more `-` to `/` misparse for paths like `claude-code-main`).
+- **Profile Pointer Switching** — Config profile switching uses `.active-profile` pointer file instead of physically renaming files. Original filenames preserved permanently.
+
+### Improvements
+
+- **Migration Panel Redesign** — Two-tab layout: "项目迁移" (project-level with checkboxes, source badges, status tags) and "配置同步" (field-level with icons, collapsible JSON preview).
+- **MCP Config Migration** — Global `~/.claude/.mcp.json` and project-level `.claude/.mcp.json` included in migration.
+- **Co-Authored-By Attribution** — Changed from `noreply@anthropic.com` to `@LegnaOS` contributor identity.
+
+## [1.8.5] - 2026-04-23
+
+### Optimizations
+
+- **Tool Prompt Compression** — Compressed tool descriptions for BashTool (~21K→~12K chars), AgentTool (~16K→~13K chars), TodoWriteTool (~9.5K→~2K chars), and EnterPlanModeTool (~7.7K→~2K chars). Reduces first-request token cost by ~8,000-10,000 tokens.
+
+### Bug Fixes
+
+- **Model Adapter cache_control Fix** — Added `normalizeToolsKeepCache()` variant in `src/utils/model/adapters/shared.ts` that preserves `cache_control` on tool definitions. Kimi, MiniMax, and MiMo adapters now use it, fixing tool-level prompt caching that was silently stripped by `normalizeTools()`. MiMo adapter also drops unnecessary `stripCacheControl()` since its API supports server-side auto caching.
+
+## [1.8.4] - 2026-04-22
+
+### Bug Fixes
+
+- **Session Transcript Null Guard** — Added defensive null/type checks to `isLoggableMessage`, `collectReplIds`, and `transformMessagesForExternalTranscript` in `src/utils/sessionStorage.ts`. Prevents `m4 is not an Object (evaluating '"isVirtual" in m4')` crash when the messages array contains undefined/null elements during React effect processing in `useLogMessages`.
+
+## [1.8.3] - 2026-04-22
+
+### Features
+
+- **GitHub Actions Release Workflow** — 4-stage CI pipeline: prepare (bump + webui) → native (Rust addons on 4 platform runners) → compile (7 Bun cross-compile targets) → publish (npm). Trigger via `v*` tag push or manual `workflow_dispatch`.
+- **Cross-Platform Rust Native Addons** — CI builds `sandbox`, `file-search`, `apply-patch` NAPI addons for darwin-arm64, darwin-x64, linux-x64, linux-arm64 using native runners.
+- **compile.ts --target flag** — Support cross-compilation target override for CI usage.
+
+### Bug Fixes
+
+- **OML Agent Type Mismatch** — Fixed `agent` field in OML skill definitions passing an object `{ type, model }` instead of a string. Caused all 19 OML agent skills to silently fallback to `general-purpose` in fork mode.
+
 ## [1.8.2] - 2026-04-22
 
 ### Bug Fixes

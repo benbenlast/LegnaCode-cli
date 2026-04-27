@@ -1,18 +1,26 @@
 /**
  * DeepSeek model adapter.
  *
- * DeepSeek provides an Anthropic-compatible API at api.deepseek.com/anthropic.
- * Key differences from standard Anthropic API:
+ * DeepSeek provides dual API endpoints:
+ *   - Anthropic: https://api.deepseek.com/anthropic
+ *   - OpenAI:    https://api.deepseek.com
  *
- * 1. thinking: only { type: "enabled" | "disabled" } — no budget_tokens/adaptive
- * 2. tool_choice: force "auto"
- * 3. tools.type: "custom"
- * 4. betas: not supported
- * 5. top_p: default 1.0 — do NOT inject a lower default
- * 6. deepseek-reasoner: temperature/top_p are ignored — strip them
- * 7. reasoning_content: strip from assistant messages to avoid 400 errors
- * 8. metadata/speed/output_config/context_management/cache_control: not supported
- * 9. Response: thinking blocks may appear after text — reorder
+ * apiFormat: 'auto' — detects from ANTHROPIC_BASE_URL:
+ *   /anthropic suffix → Anthropic SDK, otherwise → OpenAI fetch bridge
+ *
+ * Anthropic API compatibility (from DeepSeek docs):
+ *   - model: use DeepSeek model names (deepseek-v4-flash, deepseek-v4-pro)
+ *   - thinking: supported (budget_tokens ignored)
+ *   - output_config: only effort is supported
+ *   - tool_choice: auto/none/any/tool supported (disable_parallel_tool_use ignored)
+ *   - cache_control: ignored everywhere
+ *   - image/document/server_tool_use/redacted_thinking: not supported
+ *   - reasoning_content: strip from assistant messages to avoid 400 errors
+ *   - deepseek-reasoner: temperature/top_p ignored — strip them
+ *   - Response: thinking blocks may appear after text — reorder
+ *
+ * Models: deepseek-v4-flash, deepseek-v4-pro,
+ *         deepseek-chat (deprecated 2026/07/24), deepseek-reasoner (deprecated 2026/07/24)
  */
 
 import type { ModelAdapter } from './index.js'
@@ -25,6 +33,7 @@ import {
   stripCacheControl,
   stripReasoningContent,
   stripReasonerSamplingParams,
+  stripUnsupportedContentBlocks,
   reorderThinkingBlocks,
 } from './shared.js'
 
@@ -33,6 +42,7 @@ const DEEPSEEK_HOST = 'api.deepseek.com'
 
 export const DeepSeekAdapter: ModelAdapter = {
   name: 'DeepSeek',
+  apiFormat: 'auto',
 
   match(model: string, baseUrl?: string): boolean {
     if (model.startsWith(DEEPSEEK_MODEL_PREFIX)) return true
@@ -51,6 +61,7 @@ export const DeepSeekAdapter: ModelAdapter = {
     stripUnsupportedFields(out)
     stripCacheControl(out)
     stripReasoningContent(out)
+    stripUnsupportedContentBlocks(out)
     // No injectTopP — DeepSeek defaults to 1.0, no need to override
     if (out.model && out.model.includes('reasoner')) {
       stripReasonerSamplingParams(out)

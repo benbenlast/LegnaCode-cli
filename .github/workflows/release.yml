@@ -1,0 +1,259 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g. 1.8.3)'
+        required: true
+      skip_win32:
+        description: 'Skip win32 build'
+        type: boolean
+        default: true
+      dry_run:
+        description: 'Dry run (no actual publish)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+env:
+  BUN_VERSION: '1.2.12'
+  RUST_TOOLCHAIN: 'stable'
+
+jobs:
+  # ── Step 1: Bump version & build webui ──
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Bump version
+        run: bun run scripts/bump.ts ${{ steps.version.outputs.version }}
+
+      - name: Build WebUI
+        run: bun run scripts/build-webui.ts
+
+      - name: Upload prepared source
+        uses: actions/upload-artifact@v4
+        with:
+          name: prepared-source
+          path: |
+            .
+            !node_modules
+            !.git
+            !native/target
+          retention-days: 1
+
+  # ── Step 2: Build Rust native addons (per-platform runners) ──
+  native:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-14
+            platform: darwin
+            arch: arm64
+            rust_target: aarch64-apple-darwin
+          - runner: macos-13
+            platform: darwin
+            arch: x64
+            rust_target: x86_64-apple-darwin
+          - runner: ubuntu-latest
+            platform: linux
+            arch: x64
+            rust_target: x86_64-unknown-linux-gnu
+          - runner: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+            rust_target: aarch64-unknown-linux-gnu
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: prepared-source
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_target }}
+
+      - name: Build native addons
+        working-directory: native
+        run: |
+          CRATES="sandbox file-search apply-patch"
+          for crate in $CRATES; do
+            echo "Building $crate for ${{ matrix.rust_target }}..."
+            cargo build --release -p "legnacode-${crate}" --target ${{ matrix.rust_target }}
+
+            # Find the compiled library
+            CRATE_UNDER=$(echo "$crate" | tr '-' '_')
+            LIB_NAME="legnacode_${CRATE_UNDER}"
+            if [ "${{ matrix.platform }}" = "darwin" ]; then
+              SRC="target/${{ matrix.rust_target }}/release/lib${LIB_NAME}.dylib"
+            elif [ "${{ matrix.platform }}" = "linux" ]; then
+              SRC="target/${{ matrix.rust_target }}/release/lib${LIB_NAME}.so"
+            fi
+
+            DEST="../src/native/${crate}.${{ matrix.platform }}-${{ matrix.arch }}.node"
+            cp "$SRC" "$DEST"
+            echo "  → $DEST"
+          done
+
+      - name: Upload native addons
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-${{ matrix.platform }}-${{ matrix.arch }}
+          path: src/native/*.node
+          retention-days: 1
+
+  # ── Step 3: Cross-compile Bun binaries (all platforms) ──
+  compile:
+    needs: [prepare, native]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: bun-darwin-arm64
+            pkg: legnacode-darwin-arm64
+            os: darwin
+            arch: arm64
+          - target: bun-darwin-x64
+            pkg: legnacode-darwin-x64
+            os: darwin
+            arch: x64
+          - target: bun-darwin-x64-baseline
+            pkg: legnacode-darwin-x64-baseline
+            os: darwin
+            arch: x64
+          - target: bun-linux-x64
+            pkg: legnacode-linux-x64
+            os: linux
+            arch: x64
+          - target: bun-linux-x64-baseline
+            pkg: legnacode-linux-x64-baseline
+            os: linux
+            arch: x64
+          - target: bun-linux-arm64
+            pkg: legnacode-linux-arm64
+            os: linux
+            arch: arm64
+          - target: bun-windows-x64
+            pkg: legnacode-win32-x64
+            os: win32
+            arch: x64
+    steps:
+      - name: Skip win32 check
+        id: skip
+        run: |
+          if [ "${{ matrix.os }}" = "win32" ] && [ "${{ inputs.skip_win32 }}" != "false" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/download-artifact@v4
+        if: steps.skip.outputs.skip == 'false'
+        with:
+          name: prepared-source
+
+      # Download matching native addons into src/native/
+      - uses: actions/download-artifact@v4
+        if: steps.skip.outputs.skip == 'false' && matrix.os != 'win32'
+        with:
+          name: native-${{ matrix.os }}-${{ matrix.arch }}
+          path: src/native/
+
+      - uses: oven-sh/setup-bun@v2
+        if: steps.skip.outputs.skip == 'false'
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Compile for ${{ matrix.target }}
+        if: steps.skip.outputs.skip == 'false'
+        run: |
+          bun run scripts/compile.ts --target=${{ matrix.target }}
+          mkdir -p dist/${{ matrix.pkg }}/bin
+          EXT=""
+          if [ "${{ matrix.os }}" = "win32" ]; then EXT=".exe"; fi
+          mv legna${EXT} dist/${{ matrix.pkg }}/bin/legna${EXT}
+
+          # Copy native .node files into the package bin/ dir
+          if [ "${{ matrix.os }}" != "win32" ]; then
+            for f in src/native/*.${{ matrix.os }}-${{ matrix.arch }}.node; do
+              [ -f "$f" ] && cp "$f" dist/${{ matrix.pkg }}/bin/
+            done
+          fi
+
+          # Copy package.json
+          cp .npm-packages/${{ matrix.pkg }}/package.json dist/${{ matrix.pkg }}/package.json
+
+      - name: Upload compiled package
+        if: steps.skip.outputs.skip == 'false'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.pkg }}
+          path: dist/${{ matrix.pkg }}
+          retention-days: 1
+
+  # ── Step 4: Publish to npm ──
+  publish:
+    needs: [prepare, compile]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: packages
+          pattern: legnacode-*
+          merge-multiple: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Publish platform packages
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          DRY_RUN=""
+          if [ "${{ inputs.dry_run }}" = "true" ]; then DRY_RUN="--dry-run"; fi
+
+          for pkg_dir in packages/legnacode-*/; do
+            if [ ! -f "$pkg_dir/package.json" ]; then continue; fi
+            pkg_name=$(node -p "require('./${pkg_dir}/package.json').name")
+            echo "Publishing ${pkg_name}@${{ needs.prepare.outputs.version }}..."
+            cd "$pkg_dir"
+            npm publish --access public $DRY_RUN || echo "⚠️ Failed or already published: $pkg_name"
+            cd -
+          done
+
+      - name: Summary
+        run: |
+          echo "## Published v${{ needs.prepare.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          for pkg_dir in packages/legnacode-*/; do
+            if [ ! -f "$pkg_dir/package.json" ]; then continue; fi
+            pkg_name=$(node -p "require('./${pkg_dir}/package.json').name")
+            echo "- ${pkg_name}" >> $GITHUB_STEP_SUMMARY
+          done

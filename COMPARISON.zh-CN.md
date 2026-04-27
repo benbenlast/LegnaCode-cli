@@ -22,10 +22,15 @@
 | GCP Vertex | ✅ | ✅ |
 | Azure OpenAI | ❌ | ✅ |
 | MiniMax 深度原生兼容 | ❌ | ✅ 6 个多模态工具自动注册 |
-| OpenAI 兼容桥接器 | ❌ | ✅ 任何 `/v1/chat/completions` 端点（Ollama/vLLM/LM Studio） |
-| DeepSeek / Qwen / GLM / SiliconFlow | ❌ | ✅ 通过 OpenAI 兼容桥接 + 专用适配器 |
+| OpenAI 兼容流式桥接 | ❌ | ✅ 完整 SSE→Anthropic 事件转换，支持 tool_calls/reasoning_content |
+| API 格式自动检测 | ❌ | ✅ URL 推断：`/anthropic` 后缀走 Anthropic SDK，否则走 OpenAI fetch |
+| `apiFormat` 设置 | ❌ | ✅ 每个 profile 可强制 Anthropic 或 OpenAI，或自动检测 |
+| DeepSeek / Qwen / GLM / Kimi / MiMo | ❌ | ✅ 7 个专用适配器，双端点（Anthropic + OpenAI） |
+| reasoning_content 回传 | ❌ | ✅ 自动提取 thinking blocks 用于 DeepSeek/Kimi/MiMo 多轮对话 |
+| MiniMax reasoning_details | ❌ | ✅ 数组格式 thinking 内容（OpenAI 流式） |
+| Provider 特有终止原因 | ❌ | ✅ sensitive（GLM）、repetition_truncation（MiMo）、content_filter |
 | 智能模型路由 | ❌ | ✅ 按 prompt 复杂度自动选模型层 |
-| Model Adapter 架构 | 部分 | ✅ 8 个适配器（DeepSeek/GLM/Kimi/MiMo/MiniMax/Qwen/OpenAI 兼容） |
+| Model Adapter 架构 | 部分 | ✅ 7 个适配器 + OpenAI 兼容桥接，per-adapter apiFormat |
 | 弱模型 JSON 修复 | ❌ | ✅ 修复 markdown 围栏、尾逗号、不平衡括号 |
 
 ## 多模态能力（MiniMax 模型专属）
@@ -119,8 +124,11 @@
 |------|:-----------:|:---------:|
 | 全局配置目录 | `~/.claude/` | `~/.legna/`（自动迁移） |
 | WebUI 管理面板 | ❌ | ✅ `legna admin` |
+| WebUI 配置文件内联编辑 | ❌ | ✅ 每个 profile 卡片直接编辑，per-file 读写 API |
+| WebUI 预设模板 | ❌ | ✅ 7 家 Provider 预设（DeepSeek/Kimi/GLM/Qwen/MiniMax/MiMo/Anthropic） |
 | WebUI 聊天查看器 | ❌ | ✅ 会话回放，支持思维链/工具调用可视化 |
 | WebUI 实时聊天 | ❌ | ✅ SSE 流式聊天，用于 API 连通性测试（仅单轮对话） |
+| Kiro Gateway 优化 | ❌ | ✅ 客户端历史压缩（thinking/tool_result/schema） |
 | 配置迁移工具 | ❌ | ✅ `legna migrate` |
 | MiniMax 认证 | ❌ | ✅ `/auth-minimax` |
 | 纯 TS 语法高亮 | ❌ 依赖原生模块 | ✅ 零原生依赖 |
