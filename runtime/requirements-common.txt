@@ -1,0 +1,4 @@
+# Common dependencies (all platforms)
+mss>=10.1.0
+Pillow>=11.1.0
+pyautogui>=0.9.54

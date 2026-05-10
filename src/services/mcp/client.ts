@@ -235,18 +235,16 @@ import { isClaudeInChromeMCPServer } from '../../utils/claudeInChrome/common.js'
 const claudeInChromeToolRendering =
   (): typeof import('../../utils/claudeInChrome/toolRendering.js') =>
     require('../../utils/claudeInChrome/toolRendering.js')
-// Lazy: wrapper.tsx → hostAdapter.ts → executor.ts pulls both native modules
-// (@ant/computer-use-input + @ant/computer-use-swift). Runtime-gated by
-// GrowthBook tengu_malort_pedway (see gates.ts).
-const computerUseWrapper = feature('CHICAGO_MCP')
-  ? (): typeof import('../../utils/computerUse/wrapper.js') =>
-      require('../../utils/computerUse/wrapper.js')
-  : undefined
-const isComputerUseMCPServer = feature('CHICAGO_MCP')
-  ? (
-      require('../../utils/computerUse/common.js') as typeof import('../../utils/computerUse/common.js')
-    ).isComputerUseMCPServer
-  : undefined
+// Lazy: wrapper.tsx → hostAdapter.ts → executor.ts uses Python bridge.
+// No longer gated by GrowthBook — always available, runtime-gated by
+// settings.json computerUse.enabled (see gates.ts).
+const computerUseWrapper =
+  (): typeof import('../../utils/computerUse/wrapper.js') =>
+    require('../../utils/computerUse/wrapper.js')
+const isComputerUseMCPServer =
+  (
+    require('../../utils/computerUse/common.js') as typeof import('../../utils/computerUse/common.js')
+  ).isComputerUseMCPServer
 
 import { mkdir, readFile, unlink, writeFile } from 'fs/promises'
 import { dirname, join } from 'path'
@@ -923,9 +921,8 @@ export const connectToServer = memoize(
         transport = clientTransport
         logMCPDebug(name, `In-process Chrome MCP server started`)
       } else if (
-        feature('CHICAGO_MCP') &&
         (serverRef.type === 'stdio' || !serverRef.type) &&
-        isComputerUseMCPServer!(name)
+        isComputerUseMCPServer(name)
       ) {
         // Run the Computer Use MCP server in-process — same rationale as
         // Chrome above. The package's CallTool handler is a stub; real
@@ -1980,10 +1977,9 @@ export const fetchToolsForClient = memoizeWithLRU(
                   tool.name,
                 )
               : {}),
-            ...(feature('CHICAGO_MCP') &&
-            (client.config.type === 'stdio' || !client.config.type) &&
-            isComputerUseMCPServer!(client.name)
-              ? computerUseWrapper!().getComputerUseMCPToolOverrides(tool.name)
+            ...((client.config.type === 'stdio' || !client.config.type) &&
+            isComputerUseMCPServer(client.name)
+              ? computerUseWrapper().getComputerUseMCPToolOverrides(tool.name)
               : {}),
           }
         })

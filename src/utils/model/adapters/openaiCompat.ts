@@ -13,6 +13,20 @@
 
 import type { ModelAdapter } from './index.js'
 
+// Lazy import to avoid circular dependency at module load time
+let _getApiKey: (() => string | null) | undefined
+function resolveApiKey(): string {
+  if (!_getApiKey) {
+    try {
+      const auth = require('../../auth.js')
+      _getApiKey = auth.getAnthropicApiKey
+    } catch {
+      _getApiKey = () => null
+    }
+  }
+  return _getApiKey!() || process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN || ''
+}
+
 // ── Message Format Translation ──────────────────────────────────────
 
 interface AnthropicMessage {
@@ -55,7 +69,12 @@ function convertAnthropicToOpenAI(msg: AnthropicMessage): OpenAIMessage[] {
 
   // Simple string content
   if (typeof content === 'string') {
-    return [{ role, content }]
+    const result: OpenAIMessage = { role, content }
+    // Preserve reasoning_content for DeepSeek/Kimi multi-turn
+    if (role === 'assistant' && msg.reasoning_content) {
+      result.reasoning_content = msg.reasoning_content
+    }
+    return [result]
   }
 
   if (!Array.isArray(content)) {
@@ -79,9 +98,11 @@ function convertAnthropicToOpenAI(msg: AnthropicMessage): OpenAIMessage[] {
   // assistant with tool_use blocks
   const toolUses = content.filter((b: any) => b.type === 'tool_use')
   const textParts = content.filter((b: any) => b.type === 'text').map((b: any) => b.text).join('')
+  const thinkingBlocks = content.filter((b: any) => b.type === 'thinking')
+  const thinkingParts = thinkingBlocks.map((b: any) => b.thinking ?? '').join('')
 
   if (toolUses.length > 0 && role === 'assistant') {
-    return [{
+    const msg: OpenAIMessage = {
       role: 'assistant',
       content: textParts || null,
       tool_calls: toolUses.map((b: any) => ({
@@ -92,15 +113,23 @@ function convertAnthropicToOpenAI(msg: AnthropicMessage): OpenAIMessage[] {
           arguments: typeof b.input === 'string' ? b.input : JSON.stringify(b.input ?? {}),
         },
       })),
-    }]
+    }
+    // DeepSeek/Kimi OpenAI endpoints require reasoning_content to be passed back
+    if (thinkingBlocks.length > 0) msg.reasoning_content = thinkingParts || ''
+    return [msg]
   }
 
   // Default: concatenate text blocks
   const text = content
-    .filter((b: any) => b.type === 'text' || b.type === 'thinking')
-    .map((b: any) => b.text ?? b.thinking ?? '')
+    .filter((b: any) => b.type === 'text')
+    .map((b: any) => b.text ?? '')
     .join('')
-  return [{ role, content: text || '' }]
+  const result: OpenAIMessage = { role, content: text || '' }
+  // Pass back reasoning_content for assistant messages with thinking
+  if (role === 'assistant' && thinkingBlocks.length > 0) {
+    result.reasoning_content = thinkingParts || ''
+  }
+  return [result]
 }
 
 /** Convert Anthropic tool schema to OpenAI function calling format */
@@ -139,6 +168,16 @@ function normalizeBaseUrl(url: string): string {
   return u
 }
 
+/**
+ * Derive OpenAI base URL from ANTHROPIC_BASE_URL by stripping /anthropic suffix.
+ * e.g. https://api.deepseek.com/anthropic → https://api.deepseek.com
+ */
+function deriveOpenAIBaseUrl(): string | undefined {
+  const anthropicBase = process.env.ANTHROPIC_BASE_URL
+  if (!anthropicBase) return undefined
+  return anthropicBase.replace(/\/anthropic\/?$/, '')
+}
+
 /** Check if OpenAI compat mode is active */
 export function isOpenAICompatActive(): boolean {
   return !!(process.env.OPENAI_COMPAT_BASE_URL || process.env.OPENAI_COMPAT_API_KEY)
@@ -147,16 +186,30 @@ export function isOpenAICompatActive(): boolean {
 /**
  * Transform Anthropic Messages API params into OpenAI Chat Completions params.
  * This is the core bridge — called instead of sending to Anthropic API.
+ *
+ * URL resolution priority:
+ *   1. options.baseUrl (explicit override)
+ *   2. OPENAI_COMPAT_BASE_URL env var
+ *   3. Derived from ANTHROPIC_BASE_URL (strip /anthropic suffix)
+ *   4. Fallback: http://localhost:11434/v1
  */
-export function anthropicToOpenAI(params: Record<string, any>): {
+export function anthropicToOpenAI(params: Record<string, any>, options?: {
+  baseUrl?: string
+  apiKey?: string
+}): {
   url: string
   headers: Record<string, string>
   body: Record<string, any>
 } {
   const baseUrl = normalizeBaseUrl(
-    process.env.OPENAI_COMPAT_BASE_URL || 'http://localhost:11434/v1'
+    options?.baseUrl
+      || process.env.OPENAI_COMPAT_BASE_URL
+      || deriveOpenAIBaseUrl()
+      || 'http://localhost:11434/v1'
   )
-  const apiKey = process.env.OPENAI_COMPAT_API_KEY || 'ollama'
+  const apiKey = options?.apiKey
+    || resolveApiKey()
+    || 'ollama'
 
   // Convert messages
   const openaiMessages: OpenAIMessage[] = []

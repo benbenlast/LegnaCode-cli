@@ -541,6 +541,103 @@ Built-in plugins use `{name}@builtin` identifiers and can be enabled/disabled vi
 
 ---
 
+## Model Adapters & OpenAI Routing
+
+### Architecture
+
+```
+paramsFromContext() → applyModelAdapter() → [fork point]
+  ├─ __openaiCompat: false → anthropic.beta.messages.create() (Anthropic SDK)
+  └─ __openaiCompat: true  → openAIStreamingRequest() (fetch-based)
+                                ├─ anthropicToOpenAI(params) → build request
+                                └─ OpenAI SSE → convert to Anthropic events
+```
+
+Internal message format is always Anthropic. Session storage, tool execution, skills, memory — all unchanged. Format conversion happens only at the API boundary.
+
+### Adapter Interface
+
+Each adapter in `src/utils/model/adapters/` implements:
+
+```typescript
+interface ModelAdapter {
+  name: string
+  apiFormat?: 'anthropic' | 'openai' | 'auto'  // default: 'anthropic'
+  match(model: string, baseUrl?: string): boolean
+  transformParams(params: Record<string, any>): Record<string, any>
+  transformResponse?(content: any[]): any[] | null
+  getStopReasonMessage?(stopReason: string): string | undefined
+}
+```
+
+`apiFormat: 'auto'` detects from `ANTHROPIC_BASE_URL`: `/anthropic` suffix → Anthropic SDK, otherwise → OpenAI fetch bridge.
+
+### Registered Adapters (priority order)
+
+| Adapter | Provider | apiFormat | Key Features |
+|---------|----------|-----------|-------------|
+| OpenAICompatAdapter | Any OpenAI endpoint | openai | Activated by `OPENAI_COMPAT_BASE_URL` env |
+| MiMoAdapter | Xiaomi | auto | mimo-v2.5-pro/v2.5, Token Plan host |
+| GLMAdapter | ZhipuAI | auto | glm-5.1 to glm-4.5, Coding Plan, cached_tokens |
+| DeepSeekAdapter | DeepSeek | auto | v4-flash/v4-pro, reasoning_content passback |
+| KimiAdapter | Moonshot | auto | kimi-k2.6 thinking, Preserved Thinking |
+| MiniMaxAdapter | MiniMax | auto | reasoning_details array, China/Global hosts |
+| QwenAdapter | Alibaba | auto | DashScope Beijing/Singapore/Coding Plan |
+
+### OpenAI Streaming Bridge
+
+`src/services/api/openaiStreamBridge.ts` converts OpenAI SSE to Anthropic events:
+
+- `delta.content` → `content_block_delta` (text_delta)
+- `delta.tool_calls` → `content_block_start` (tool_use) + `content_block_delta` (input_json_delta)
+- `delta.reasoning_content` → `content_block_delta` (thinking_delta) — DeepSeek/Kimi/MiMo
+- `delta.reasoning_details` → `content_block_delta` (thinking_delta) — MiniMax
+- `finish_reason` mapping: stop→end_turn, tool_calls→tool_use, length→max_tokens, sensitive→content_filter
+
+### Shared Utilities (`src/utils/model/adapters/shared.ts`)
+
+- `simplifyThinking` — `{type: "enabled"}` only, no budget_tokens
+- `forceAutoToolChoice` — strips `disable_parallel_tool_use`
+- `normalizeTools` / `normalizeToolsKeepCache` — sets `type: "custom"`
+- `stripUnsupportedContentBlocks` — filters image/document/redacted_thinking
+- `stripUnsupportedFields` — preserves `output_config.effort`
+- `stripReasoningContent` — removes reasoning from assistant messages (Anthropic path)
+- `reorderThinkingBlocks` — thinking before text in response
+
+### Configuration
+
+Settings.json `apiFormat` field:
+- `"anthropic"` — force Anthropic SDK path
+- `"openai"` — force OpenAI fetch bridge
+- omitted — use adapter's `apiFormat` declaration (default: auto-detect from URL)
+
+Admin WebUI: Settings panel → "API 路由模式" dropdown.
+
+---
+
+## Kiro Gateway Optimization
+
+When `kiroGateway: true` is set in settings, LegnaCode compresses history messages before sending to reduce token consumption. This is aligned with the Kiro Gateway's `converter.py` compression logic.
+
+File: `src/utils/model/kiroOptimize.ts`
+
+### Compression Rules
+
+| Target | Condition | Action |
+|--------|-----------|--------|
+| thinking blocks | distance > 5 turns | truncateMiddle to 2000 chars / 60 lines |
+| redacted_thinking | always | remove |
+| tool_result content | distance > 8 turns | truncateMiddle to 8000 chars / 150 lines |
+| image blocks | distance > 5 turns | replace with `[image omitted from history]` |
+| tool description | > 9216 chars | truncate |
+| JSON schema | always | whitelist filter + anyOf/oneOf flatten + compact |
+
+### Integration Point
+
+Called in `paramsFromContext()` after `applyModelAdapter()`, only when `kiroGateway` setting is enabled. Uses lazy `require()` to avoid import overhead when disabled.
+
+---
+
 ## MCP Integration
 
 MCP (Model Context Protocol) is deeply integrated in `src/services/mcp/`.
@@ -871,3 +968,94 @@ agents/             # User agent definitions
 - `src/utils/legnaPathResolver.ts` — `PROJECT_FOLDER` / `LEGACY_FOLDER` / `resolveProjectPath()`
 - `src/utils/envUtils.ts` — `getClaudeConfigHomeDir()` → `~/.legna`, `runGlobalMigration()` one-time migration
 - `src/utils/ensureLegnaGitignored.ts` — automatically adds `.legna/` to `.gitignore`
+
+---
+
+## LegnaCode Office — Pixel Office Visualization
+
+VS Code extension + Admin WebUI panel that visualizes agent activity as a pixel office scene.
+
+### Architecture
+
+```
+CLI Process ──► officeEmitter.ts ──► HTTP POST ──► LegnaOfficeServer
+                                                       │
+                                            ┌──────────┴──────────┐
+                                            ▼                     ▼
+                                      VS Code Webview        Admin WebUI
+                                      (postMessage)          (WebSocket)
+```
+
+### Directory Structure
+
+```
+extensions/legna-office/
+├── server/src/
+│   ├── server.ts              # HTTP + WebSocket server (RFC 6455)
+│   ├── hookEventHandler.ts    # Event routing + session→agent mapping
+│   ├── conversationStore.ts   # Ring buffer (200 messages per session)
+│   ├── provider.ts            # HookProvider interface
+│   ├── i18n.ts                # Server-side i18n
+│   └── providers/hook/legna/
+│       ├── legnaProvider.ts   # LegnaCode native provider
+│       └── legnaHookInstaller.ts  # Auto-write settings
+├── src/                       # VS Code extension backend
+├── webview-ui/src/
+│   ├── office/                # Canvas 2D engine (character FSM, pathfinding, furniture)
+│   ├── components/
+│   │   ├── ConversationSidebar.tsx  # Collapsible conversation flow
+│   │   └── StatusBubble.ts         # Status bubble above characters
+│   ├── hooks/
+│   │   ├── useExtensionMessages.ts  # VS Code postMessage
+│   │   ├── useServerMessages.ts     # WebSocket (for Admin)
+│   │   └── useConversation.ts       # Conversation state management
+│   ├── audio/notificationSounds.ts  # Web Audio notification sounds
+│   ├── demo/demoData.ts             # Standalone demo mode
+│   └── i18n/                        # zh/en bilingual
+```
+
+### Communication Protocol
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/hooks/:providerId` | POST | Bearer token | Hook events |
+| `/api/conversation` | POST | Bearer token | Conversation messages |
+| `/api/state` | GET | None | Current state snapshot |
+| `/api/layout` | GET/POST | POST requires auth | Layout persistence |
+| `/api/join-key` | GET | Bearer token | Get join-key |
+| `/ws` | WebSocket | join-key (remote) | Real-time push |
+
+### Join-Key Authentication
+
+- Server generates 8-char join-key on startup, written to `~/.legna-office/server.json`
+- Local WebSocket connections (127.0.0.1) bypass auth
+- Remote connections require `?key=<joinKey>` in URL
+- HTTP API accepts Bearer token or `?key=` query parameter
+
+### Settings
+
+```json
+{
+  "legnaOffice": {
+    "enabled": true,
+    "autoConnect": true
+  }
+}
+```
+
+### CLI Integration
+
+`src/services/officeEmitter.ts` is called within hook execution functions (fire-and-forget), reads `~/.legna-office/server.json` for server discovery, POSTs events to `/api/hooks/legna` and `/api/conversation`.
+
+### Building
+
+```bash
+# VS Code extension
+cd extensions/legna-office && npm install && npm run build
+
+# Webview UI (dev mode)
+cd extensions/legna-office/webview-ui && npm install && npm run dev
+
+# Package VSIX
+cd extensions/legna-office && npx @vscode/vsce package
+```

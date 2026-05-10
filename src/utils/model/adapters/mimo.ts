@@ -1,47 +1,61 @@
 /**
  * Xiaomi MiMo model adapter.
  *
- * MiMo provides an Anthropic-compatible API at api.xiaomimimo.com/anthropic.
- * Differences from standard Anthropic API:
+ * MiMo provides dual API endpoints:
+ *   - Anthropic:         https://api.xiaomimimo.com/anthropic
+ *   - OpenAI:            https://api.xiaomimimo.com/v1
+ *   - Token Plan (Anthropic): https://token-plan-cn.xiaomimimo.com/anthropic
+ *   - Token Plan (OpenAI):    https://token-plan-cn.xiaomimimo.com/v1
  *
- * 1. thinking: only { type: "enabled" | "disabled" } — no budget_tokens/adaptive
- * 2. tool_choice: only supports "auto" — strip "any"/"tool" modes
- * 3. tools.type: must be "custom" (Anthropic doesn't require this field)
- * 4. betas: not supported — strip entirely
- * 5. top_p: supported — inject default 0.95
- * 6. temperature: range [0, 1.5] vs Anthropic's [0, 1] (no clamping needed)
- * 7. metadata/speed/output_config/context_management: not supported — strip
- * 8. cache_control: not supported — strip from system/messages
- * 9. Response: thinking block may appear after text block — reorder
- * 10. stop_reason: extra values content_filter/repetition_truncation
- *     - content_filter: content safety filter triggered, output truncated
- *     - repetition_truncation: repetition detected, output truncated
+ * apiFormat: 'auto' — detects from ANTHROPIC_BASE_URL:
+ *   /anthropic suffix → Anthropic SDK, otherwise → OpenAI fetch bridge
  *
- * Models: mimo-v2-pro (1M ctx), mimo-v2-omni, mimo-v2-flash (262K ctx)
+ * Auth: supports both `Authorization: Bearer` and `api-key` header.
+ *
+ * Anthropic API compatibility:
+ *   - thinking: { type: "enabled" | "disabled" } — no budget_tokens/adaptive
+ *   - tool_choice: only "auto" — other values silently ignored by server
+ *   - tools.type: must be "custom"
+ *   - cache_control: supported (server-side auto caching, response includes cache_read_input_tokens)
+ *   - stop_reason: extra values content_filter, repetition_truncation
+ *   - top_p: [0.01, 1.0], default 0.95
+ *   - temperature: [0, 1.5]
+ *   - betas/metadata/speed/output_config/context_management: not supported
+ *
+ * OpenAI API compatibility:
+ *   - reasoning_content: returned in thinking mode, must be passed back in multi-turn
+ *   - thinking.type: "enabled" | "disabled" (same as Anthropic)
+ *   - tool_choice: only "auto"
+ *   - finish_reason: stop, length, tool_calls, content_filter, repetition_truncation
+ *   - max_completion_tokens: includes reasoning tokens
+ *
+ * Models: mimo-v2.5-pro, mimo-v2.5, mimo-v2-pro (1M ctx),
+ *         mimo-v2-omni, mimo-v2-flash (262K ctx)
  */
 
 import type { ModelAdapter } from './index.js'
 import {
   simplifyThinking,
   forceAutoToolChoice,
-  normalizeTools,
+  normalizeToolsKeepCache,
   stripBetas,
   injectTopP,
   stripUnsupportedFields,
-  stripCacheControl,
+  stripUnsupportedContentBlocks,
   reorderThinkingBlocks,
 } from './shared.js'
 
-const MIMO_MODELS = ['mimo-v2-pro', 'mimo-v2-omni', 'mimo-v2-flash']
-const MIMO_HOST = 'api.xiaomimimo.com'
+const MIMO_MODELS = ['mimo-v2.5-pro', 'mimo-v2.5', 'mimo-v2-pro', 'mimo-v2-omni', 'mimo-v2-flash']
+const MIMO_HOSTS = ['api.xiaomimimo.com', 'token-plan-cn.xiaomimimo.com']
 
 export const MiMoAdapter: ModelAdapter = {
   name: 'MiMo (Xiaomi)',
+  apiFormat: 'auto',
 
   match(model: string, baseUrl?: string): boolean {
     if (MIMO_MODELS.some(m => model.startsWith(m))) return true
     if (baseUrl) {
-      try { return new URL(baseUrl).host === MIMO_HOST } catch {}
+      try { return MIMO_HOSTS.includes(new URL(baseUrl).host) } catch {}
     }
     return false
   },
@@ -50,11 +64,11 @@ export const MiMoAdapter: ModelAdapter = {
     const out = { ...params }
     simplifyThinking(out)
     forceAutoToolChoice(out)
-    normalizeTools(out)
+    normalizeToolsKeepCache(out)
     stripBetas(out)
     injectTopP(out, 0.95)
     stripUnsupportedFields(out)
-    stripCacheControl(out)
+    stripUnsupportedContentBlocks(out)
     return out
   },
 

@@ -44,10 +44,14 @@ const { defines, features } = parseBunfig()
 // Override build-time stamp
 defines['MACRO.BUILD_TIME'] = `'"${new Date().toISOString()}"'`
 
+// Parse --target flag for cross-compilation (e.g. --target=bun-darwin-arm64)
+const targetArg = process.argv.find(a => a.startsWith('--target='))
+const target = targetArg ? targetArg.split('=')[1] : undefined
+
 const result = await Bun.build({
   entrypoints: [resolve(ROOT, 'src/entrypoints/cli.tsx')],
   outdir: resolve(ROOT, '.compile-tmp'),
-  target: 'bun',
+  target: target ?? 'bun',
   compile: true,
   define: defines,
   features,

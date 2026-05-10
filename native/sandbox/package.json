@@ -1,0 +1,16 @@
+{
+  "name": "legnacode-sandbox",
+  "version": "0.1.0",
+  "napi": {
+    "name": "sandbox",
+    "triples": {
+      "defaults": false,
+      "additional": [
+        "aarch64-apple-darwin",
+        "x86_64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "aarch64-unknown-linux-gnu"
+      ]
+    }
+  }
+}

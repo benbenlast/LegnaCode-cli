@@ -12,6 +12,7 @@ var PLATFORMS = {
   "linux-x64": "@legna-lnc/legnacode-linux-x64",
   "linux-arm64": "@legna-lnc/legnacode-linux-arm64",
   "win32-x64": "@legna-lnc/legnacode-win32-x64",
+  "win32-ia32": "@legna-lnc/legnacode-win32-ia32",
 };
 
 var key = process.platform + "-" + os.arch();

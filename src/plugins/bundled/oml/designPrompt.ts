@@ -13,9 +13,9 @@ const UI_KEYWORDS = [
   'navbar', 'sidebar', 'card', 'table', 'dashboard', 'header', 'footer',
   'dropdown', 'tooltip', 'carousel', 'grid', 'flexbox', 'responsive',
   'frontend', 'front-end', 'web page', 'webpage', 'website', 'ui',
-  // Chinese
-  '组件', '页面', '布局', '样式', '前端', '界面', '表单', '按钮',
-  '导航', '侧边栏', '卡片', '表格', '仪表盘', '弹窗', '下拉',
+  // Chinese — require more specific compound terms to avoid false positives
+  '前端开发', '前端组件', 'UI组件', 'UI设计',
+  '页面布局', '页面设计', '网页设计', '响应式布局',
   // Japanese
   'コンポーネント', 'レイアウト', 'フロントエンド', 'ページ',
 ]

@@ -1,24 +1,35 @@
 /**
- * Qwen (Alibaba Cloud) model adapter.
+ * Qwen (Alibaba Cloud DashScope) model adapter.
  *
- * Qwen provides an Anthropic-compatible API via DashScope.
- * Key differences from standard Anthropic API:
+ * DashScope provides dual API endpoints:
+ *   - Anthropic (Beijing):    https://dashscope.aliyuncs.com/apps/anthropic
+ *   - Anthropic (Singapore):  https://dashscope-intl.aliyuncs.com/apps/anthropic
+ *   - Anthropic (Coding Plan): https://coding.dashscope.aliyuncs.com/apps/anthropic
+ *   - OpenAI (Coding Plan):   https://coding.dashscope.aliyuncs.com/v1
  *
- * 1. thinking: only { type: "enabled" | "disabled" } — no budget_tokens/adaptive
- *    - Qwen3 models support thinking_budget as a top-level param
- *    - QwQ models: always-on reasoning, cannot be disabled
- * 2. tool_choice: force "auto" (named tool choice unreliable)
- * 3. tools.type: "custom"
- * 4. betas: not supported
- * 5. top_p: inject 0.95 for non-reasoning models
- * 6. qwq-* / qwen3-* reasoning: temperature/top_p are ignored — strip them
- * 7. reasoning_content: strip from assistant messages to avoid 400 errors
- * 8. metadata/speed/output_config/context_management/cache_control: not supported
- * 9. Response: thinking blocks may appear after text — reorder
- * 10. enable_search: DashScope server-side web search (opt-in via env)
+ * apiFormat: 'auto' — detects from ANTHROPIC_BASE_URL:
+ *   /anthropic suffix → Anthropic SDK, otherwise → OpenAI fetch bridge
  *
- * Models: qwen-max, qwen-plus, qwen-turbo, qwen-coder-plus,
- *         qwq-plus (reasoning), qwen3-235b-a22b (hybrid thinking)
+ * Auth: supports both ANTHROPIC_API_KEY and ANTHROPIC_AUTH_TOKEN env vars.
+ *
+ * Anthropic API compatibility:
+ *   - thinking: supported (budget_tokens ignored by server, Qwen3 maps to thinking_budget)
+ *   - output_config: only effort supported
+ *   - tool_choice: auto/none/any/tool supported
+ *   - cache_control: ignored
+ *   - image/document/server_tool_use/redacted_thinking: not supported
+ *   - reasoning_content: strip from assistant messages
+ *   - enable_search: DashScope server-side web search (opt-in via env)
+ *
+ * Models:
+ *   Max:    qwen3.6-max-preview, qwen3-max, qwen3-max-2026-01-23, qwen3-max-preview
+ *   Plus:   qwen3.6-plus, qwen3.5-plus, qwen3.5-plus-2026-02-15, qwen-plus, qwen-plus-latest
+ *   Flash:  qwen3.6-flash, qwen3.5-flash, qwen-flash
+ *   Turbo:  qwen-turbo, qwen-turbo-latest
+ *   Coder:  qwen3-coder-next, qwen3-coder-plus, qwen3-coder-flash
+ *   VL:     qwen3-vl-plus, qwen3-vl-flash, qwen-vl-max, qwen-vl-plus
+ *   Open:   qwen3.5-397b-a17b, qwen3.5-120b-a10b, qwen3.5-27b, qwen3.5-35b-a3b
+ *   3rd-party (Beijing only): deepseek-v4-*, kimi-k2.5, glm-5/4.7, MiniMax-M2.5
  */
 
 import type { ModelAdapter } from './index.js'
@@ -31,12 +42,17 @@ import {
   stripCacheControl,
   stripReasoningContent,
   stripReasonerSamplingParams,
+  stripUnsupportedContentBlocks,
   injectTopP,
   reorderThinkingBlocks,
 } from './shared.js'
 
-const QWEN_PREFIXES = ['qwen-', 'qwq-', 'qwen3-']
-const DASHSCOPE_HOSTS = ['dashscope.aliyuncs.com', 'dashscope-intl.aliyuncs.com']
+const QWEN_PREFIXES = ['qwen-', 'qwq-', 'qwen3-', 'qwen3.']
+const DASHSCOPE_HOSTS = [
+  'dashscope.aliyuncs.com',
+  'dashscope-intl.aliyuncs.com',
+  'coding.dashscope.aliyuncs.com',
+]
 
 function isReasoningModel(model: string): boolean {
   return model.startsWith('qwq-') || model.includes('thinking')
@@ -48,6 +64,7 @@ function isQwen3(model: string): boolean {
 
 export const QwenAdapter: ModelAdapter = {
   name: 'Qwen (Alibaba)',
+  apiFormat: 'auto',
 
   match(model: string, baseUrl?: string): boolean {
     if (QWEN_PREFIXES.some(p => model.startsWith(p))) return true
@@ -72,6 +89,7 @@ export const QwenAdapter: ModelAdapter = {
     stripUnsupportedFields(out)
     stripCacheControl(out)
     stripReasoningContent(out)
+    stripUnsupportedContentBlocks(out)
 
     if (isReasoningModel(out.model)) {
       stripReasonerSamplingParams(out)

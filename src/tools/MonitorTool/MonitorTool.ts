@@ -74,6 +74,7 @@ export const MonitorTool = buildTool({
   name: 'MonitorTool',
   inputSchema,
   maxResultSizeChars: 50_000,
+  shouldDefer: true,
 
   isReadOnly(input: Input) {
     return input.action === 'status'

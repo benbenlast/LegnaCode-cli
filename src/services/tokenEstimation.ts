@@ -147,52 +147,10 @@ export async function countMessagesTokensWithAPI(
       const betas = getModelBetas(model)
       const containsThinking = hasThinkingBlocks(messages)
 
-      if (getAPIProvider() === 'bedrock') {
-        // @anthropic-sdk/bedrock-sdk doesn't support countTokens currently
-        return countTokensWithBedrock({
-          model: normalizeModelStringForAPI(model),
-          messages,
-          tools,
-          betas,
-          containsThinking,
-        })
-      }
-
-      const anthropic = await getAnthropicClient({
-        maxRetries: 1,
-        model,
-        source: 'count_tokens',
-      })
-
-      const filteredBetas =
-        getAPIProvider() === 'vertex'
-          ? betas.filter(b => VERTEX_COUNT_TOKENS_ALLOWED_BETAS.has(b))
-          : betas
-
-      const response = await anthropic.beta.messages.countTokens({
-        model: normalizeModelStringForAPI(model),
-        messages:
-          // When we pass tools and no messages, we need to pass a dummy message
-          // to get an accurate tool token count.
-          messages.length > 0 ? messages : [{ role: 'user', content: 'foo' }],
-        tools,
-        ...(filteredBetas.length > 0 && { betas: filteredBetas }),
-        // Enable thinking if messages contain thinking blocks
-        ...(containsThinking && {
-          thinking: {
-            type: 'enabled',
-            budget_tokens: TOKEN_COUNT_THINKING_BUDGET,
-          },
-        }),
-      })
-
-      if (typeof response.input_tokens !== 'number') {
-        // Vertex client throws
-        // Bedrock client succeeds with { Output: { __type: 'com.amazon.coral.service#UnknownOperationException' }, Version: '1.0' }
-        return null
-      }
-
-      return response.input_tokens
+      // count_tokens API endpoint is not supported by third-party providers
+      // (Kiro Gateway, etc.) and causes 403 errors that break subsequent requests.
+      // Unconditionally skip — token estimation falls back to local heuristics.
+      return null
     } catch (error) {
       logError(error)
       return null
@@ -252,6 +210,8 @@ export async function countTokensViaHaikuFallback(
   messages: Anthropic.Beta.Messages.BetaMessageParam[],
   tools: Anthropic.Beta.Messages.BetaToolUnion[],
 ): Promise<number | null> {
+  // count_tokens API not supported by third-party providers — skip unconditionally
+  return null
   // Check if messages contain thinking blocks
   const containsThinking = hasThinkingBlocks(messages)
 

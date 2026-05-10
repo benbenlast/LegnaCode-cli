@@ -29,7 +29,7 @@ export function ShellProgressMessage(t0) {
   } = t0;
   let t1;
   if ($[0] !== fullOutput) {
-    t1 = stripAnsi(fullOutput.trim());
+    t1 = stripAnsi((fullOutput ?? '').trim());
     $[0] = fullOutput;
     $[1] = t1;
   } else {
@@ -39,7 +39,7 @@ export function ShellProgressMessage(t0) {
   let lines;
   let t2;
   if ($[2] !== output || $[3] !== strippedFullOutput || $[4] !== verbose) {
-    const strippedOutput = stripAnsi(output.trim());
+    const strippedOutput = stripAnsi((output ?? '').trim());
     lines = strippedOutput.split("\n").filter(_temp);
     t2 = verbose ? strippedFullOutput : lines.slice(-5).join("\n");
     $[2] = output;

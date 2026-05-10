@@ -11,12 +11,15 @@
  * `sendOSNotification`). AppState accessors are read through the ref too —
  * they're likely stable but we don't depend on that.
  *
- * External callers reach this via the lazy require thunk in `client.ts`, gated
- * on `feature('CHICAGO_MCP')`. Runtime enablement is controlled by the
- * GrowthBook gate `tengu_malort_pedway` (see gates.ts).
+ * External callers reach this via the lazy require thunk in `client.ts`.
+ * Runtime enablement is controlled by settings.json computerUse.enabled
+ * (see gates.ts).
  */
 
-import { bindSessionContext, type ComputerUseSessionContext, type CuCallToolResult, type CuPermissionRequest, type CuPermissionResponse, DEFAULT_GRANT_FLAGS, type ScreenshotDims } from '@ant/computer-use-mcp';
+import { bindSessionContext } from './mcp/mcpServer.js';
+import { DEFAULT_GRANT_FLAGS } from './mcp/types.js';
+import type { ComputerUseSessionContext, CuPermissionRequest, CuPermissionResponse, ScreenshotDims } from './mcp/types.js';
+import type { CuCallToolResult } from './mcp/toolCalls.js';
 import * as React from 'react';
 import { getSessionId } from '../../bootstrap/state.js';
 import { ComputerUseApproval } from '../../components/permissions/ComputerUseApproval/ComputerUseApproval.js';

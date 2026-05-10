@@ -77,7 +77,7 @@ export function getAttributionTexts(): AttributionTexts {
       ? getPublicModelName(model)
       : 'LegnaCode Opus 4.6'
   const defaultAttribution = `🤖 Generated with [LegnaCode](${PRODUCT_URL})`
-  const defaultCommit = `Co-Authored-By: ${modelName} <noreply@anthropic.com>`
+  const defaultCommit = `Co-Authored-By: ${modelName} <limitedmeng@gmail.com>`
 
   const settings = getInitialSettings()
 

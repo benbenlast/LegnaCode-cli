@@ -47,10 +47,7 @@ export function getAgentSkills(): BundledSkillDefinition[] {
     argumentHint: '<task description>',
     userInvocable: true,
     model: agent.model,
-    agent: {
-      type: agent.name,
-      model: agent.model,
-    },
+    agent: agent.name,
     getPromptForCommand: (args: string) => {
       const disallowed = agent.disallowedTools?.length
         ? `\n\nTOOL RESTRICTIONS: You MUST NOT use these tools: ${agent.disallowedTools.join(', ')}.`

@@ -39,10 +39,26 @@ const platformDirs = readdirSync(pkgBase, { withFileTypes: true })
   .filter((d) => d.isDirectory())
   .map((d) => d.name);
 
+// Platform-aware skip: Mac skips win32, Windows skips darwin/linux. Main package never auto-published.
+const currentPlatform = process.platform; // 'darwin' | 'win32' | 'linux'
+function shouldSkip(name: string): boolean {
+  // Main package — always skip, user publishes manually
+  if (name === "@legna-lnc/legnacode") return true;
+  // On Mac/Linux: skip win32 packages (built on Windows)
+  if (currentPlatform !== "win32" && name.includes("win32")) return true;
+  // On Windows: skip darwin/linux packages (built on Mac/Linux)
+  if (currentPlatform === "win32" && (name.includes("darwin") || name.includes("linux"))) return true;
+  return false;
+}
+
 console.log("\n=== Publishing platform packages ===");
 for (const dir of platformDirs) {
   const pkgDir = resolve(pkgBase, dir);
   const name = JSON.parse(readFileSync(resolve(pkgDir, "package.json"), "utf-8")).name;
+  if (shouldSkip(name)) {
+    console.log(`\nSkipping ${name} (not for ${currentPlatform})`);
+    continue;
+  }
   console.log(`\nPublishing ${name}@${version}...`);
   const r = Bun.spawnSync(["npm", ...npmArgs], {
     cwd: pkgDir,
@@ -54,15 +70,7 @@ for (const dir of platformDirs) {
   }
 }
 
-// Step 4: Publish main package
-console.log("\n=== Publishing main package ===");
-const main = Bun.spawnSync(["npm", ...npmArgs], {
-  cwd: ROOT,
-  stdio: ["inherit", "inherit", "inherit"],
-});
-if (main.exitCode !== 0) {
-  console.error("Failed to publish main package");
-  process.exit(1);
-}
+// Main package is NOT published — user controls timing
+console.log("\n=== Skipping main package (user-controlled) ===");
 
 console.log(`\n=== v${version} published${dryRun ? " (dry run)" : ""} ===`);

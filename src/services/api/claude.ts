@@ -68,6 +68,7 @@ import {
   getSonnet1mExpTreatmentEnabled,
 } from '../../utils/context.js'
 import { resolveAppliedEffort } from '../../utils/effort.js'
+import { selectDeepSeekReasoning, isDeepSeekReasoningModel } from '../../utils/model/deepseekAutoReasoning.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
 import { errorMessage } from '../../utils/errors.js'
 import { computeFingerprintFromMessages } from '../../utils/fingerprint.js'
@@ -861,6 +862,25 @@ export async function* executeNonStreamingRequest(
       )
 
       try {
+        // OpenAI-compatible routing for non-streaming requests
+        if ((retryParams as any).__openaiCompat) {
+          const { openAINonStreamingRequest } = await import('./openaiStreamBridge.js')
+          return await openAINonStreamingRequest(
+            { ...adjustedParams, model: normalizeModelStringForAPI(adjustedParams.model) },
+            retryOptions.signal!,
+          ) as any
+        }
+
+        // Responses API routing for non-streaming requests
+        if ((retryParams as any).__responsesApi) {
+          const { responsesNonStreamingRequest } = await import('./responsesStreamBridge.js')
+          const { __responsesApi: _, ...cleanParams } = adjustedParams as any
+          return await responsesNonStreamingRequest(
+            { ...cleanParams, model: normalizeModelStringForAPI(cleanParams.model) },
+            retryOptions.signal!,
+          ) as any
+        }
+
         // biome-ignore lint/plugin: non-streaming API call
         return await anthropic.beta.messages.create(
           {
@@ -1457,6 +1477,21 @@ async function* queryModel(
   }
 
   const effort = resolveAppliedEffort(options.model, options.effortValue)
+    // DeepSeek auto reasoning: when no explicit effort is set and model is DeepSeek,
+    // adaptively select reasoning effort based on message content.
+    // Inspired by DeepSeek-TUI's auto_reasoning.rs.
+    ?? (isDeepSeekReasoningModel(options.model) ? (() => {
+      const isSubagent = options.querySource.startsWith('agent:') ||
+        options.querySource === 'hook_agent' ||
+        options.querySource === 'verification_agent'
+      const lastUserMsg = [...messages].reverse().find(m => m.role === 'user')
+      const lastText = lastUserMsg
+        ? (Array.isArray(lastUserMsg.content)
+          ? lastUserMsg.content.filter((b: any) => b.type === 'text').map((b: any) => b.text).join(' ')
+          : String(lastUserMsg.content ?? ''))
+        : ''
+      return selectDeepSeekReasoning(isSubagent, lastText)
+    })() : undefined)
 
   if (feature('PROMPT_CACHE_BREAK_DETECTION')) {
     // Exclude defer_loading tools from the hash -- the API strips them from the
@@ -1729,7 +1764,19 @@ async function* queryModel(
     }
 
     // Apply model-specific adapter transformations (MiMo, DeepSeek, etc.)
-    return applyModelAdapter(rawParams)
+    let finalParams = applyModelAdapter(rawParams)
+
+    // Kiro Gateway client-side history optimization
+    try {
+      const { getInitialSettings } = require('../../utils/settings/settings.js')
+      const settings = getInitialSettings?.() ?? {}
+      if (settings.kiroGateway) {
+        const { applyKiroOptimizations } = require('../../utils/model/kiroOptimize.js')
+        finalParams = applyKiroOptimizations(finalParams)
+      }
+    } catch {}
+
+    return finalParams
   }
 
   // Compute log scalars synchronously so the fire-and-forget .then() closure
@@ -1823,6 +1870,28 @@ async function* queryModel(
         // BetaMessageStream calls partialParse() on every input_json_delta, which we don't need
         // since we handle tool input accumulation ourselves
         // biome-ignore lint/plugin: main conversation loop handles attribution separately
+
+        // OpenAI-compatible routing: when __openaiCompat is set, use fetch-based
+        // bridge instead of Anthropic SDK. The bridge yields identical event types.
+        if (params.__openaiCompat) {
+          const { openAIStreamingRequest } = await import('./openaiStreamBridge.js')
+          const { __openaiCompat: _, ...cleanParams } = params
+          queryCheckpoint('query_response_headers_received')
+          streamRequestId = null
+          streamResponse = null as any
+          return openAIStreamingRequest(cleanParams, signal) as any
+        }
+
+        // Responses API routing: when __responsesApi is set, use Responses API bridge.
+        if (params.__responsesApi) {
+          const { responsesStreamingRequest } = await import('./responsesStreamBridge.js')
+          const { __responsesApi: _, ...cleanParams } = params
+          queryCheckpoint('query_response_headers_received')
+          streamRequestId = null
+          streamResponse = null as any
+          return responsesStreamingRequest(cleanParams, signal) as any
+        }
+
         const result = await anthropic.beta.messages
           .create(
             { ...params, stream: true },

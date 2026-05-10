@@ -43,6 +43,31 @@ export function switchProfile(scope: Scope, filename: string) {
   })
 }
 
+export function cloneProfile(scope: Scope, source: string, target: string) {
+  return request<{ ok: boolean; filename: string }>(`/api/${scope}/profiles/clone`, {
+    method: 'POST',
+    body: JSON.stringify({ source, target }),
+  })
+}
+
+export function createProfile(scope: Scope, filename: string, content: Record<string, any>) {
+  return request<{ ok: boolean; filename: string }>(`/api/${scope}/profiles/create`, {
+    method: 'POST',
+    body: JSON.stringify({ filename, content }),
+  })
+}
+
+export function getProfileSettings(scope: Scope, filename: string) {
+  return request<Record<string, unknown>>(`/api/${scope}/profiles/${filename}`)
+}
+
+export function saveProfileSettings(scope: Scope, filename: string, data: Record<string, unknown>) {
+  return request<{ ok: boolean }>(`/api/${scope}/profiles/${filename}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  })
+}
+
 export interface Session {
   id: string
   project: string

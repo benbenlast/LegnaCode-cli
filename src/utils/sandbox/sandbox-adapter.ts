@@ -722,23 +722,9 @@ async function wrapWithSandbox(
     }
   }
 
-  // Prefer native Rust kernel-level sandbox when available (Level 3)
-  // This provides direct OS-level isolation via landlock/pledge/seatbelt
-  // without the overhead of the JS sandbox-runtime wrapper chain
-  if (hasNativeSandbox) {
-    const cwd = getOriginalCwd()
-    const nativeOpts: SandboxExecOptions = {
-      mode: 'workspace-write',
-      writablePaths: [cwd, '/tmp', '/private/tmp'],
-      readablePaths: ['/'],
-      networkPolicy: 'blocked',
-    }
-    // Return a wrapper script that invokes the native sandbox at exec time
-    // The actual sandboxExec() call happens in Shell.ts via the native binding
-    const marker = `__LEGNA_NATIVE_SANDBOX__`
-    const optsB64 = Buffer.from(JSON.stringify(nativeOpts)).toString('base64')
-    return `${marker}:${optsB64}:${command}`
-  }
+  // Native Rust Seatbelt sandbox removed — too many issues with .node addon
+  // shipping stale (deny default) profiles. rm -rf protection is handled
+  // at the TS permission layer (BashTool/bashPermissions.ts) instead.
 
   return BaseSandboxManager.wrapWithSandbox(
     command,

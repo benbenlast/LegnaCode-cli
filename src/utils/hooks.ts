@@ -162,6 +162,7 @@ import type { AppState } from '../state/AppState.js'
 import { jsonStringify, jsonParse } from './slowOperations.js'
 import { isEnvTruthy } from './envUtils.js'
 import { errorMessage, getErrnoCode } from './errors.js'
+import { emitOfficeEvent, emitConversation } from '../services/officeEmitter.js'
 
 const TOOL_HOOK_EXECUTION_TIMEOUT_MS = 10 * 60 * 1000
 
@@ -3405,6 +3406,7 @@ export async function* executePreToolHooks<ToolInput>(
   ) => (request: PromptRequest) => Promise<PromptResponse>,
   toolInputSummary?: string | null,
 ): AsyncGenerator<AggregatedHookResult> {
+  emitOfficeEvent('PreToolUse', { tool_name: toolName, tool_input: toolInput })
   const appState = toolUseContext.getAppState()
   const sessionId = toolUseContext.agentId ?? getSessionId()
   if (!hasHookForEvent('PreToolUse', appState, sessionId)) {
@@ -3457,6 +3459,9 @@ export async function* executePostToolHooks<ToolInput, ToolResponse>(
   signal?: AbortSignal,
   timeoutMs: number = TOOL_HOOK_EXECUTION_TIMEOUT_MS,
 ): AsyncGenerator<AggregatedHookResult> {
+  emitOfficeEvent('PostToolUse', { tool_name: toolName, tool_input: toolInput })
+  emitConversation('tool', typeof toolResponse === 'string' ? toolResponse : JSON.stringify(toolResponse), { tool_name: toolName })
+
   const hookInput: PostToolUseHookInput = {
     ...createBaseHookInput(permissionMode, undefined, toolUseContext),
     hook_event_name: 'PostToolUse',
@@ -3651,11 +3656,7 @@ export async function* executeStopHooks(
   ) => (request: PromptRequest) => Promise<PromptResponse>,
 ): AsyncGenerator<AggregatedHookResult> {
   const hookEvent = subagentId ? 'SubagentStop' : 'Stop'
-  const appState = toolUseContext?.getAppState()
-  const sessionId = toolUseContext?.agentId ?? getSessionId()
-  if (!hasHookForEvent(hookEvent, appState, sessionId)) {
-    return
-  }
+  emitOfficeEvent(hookEvent, { subagent_id: subagentId })
 
   // Extract text content from the last assistant message so hooks can
   // inspect the final response without reading the transcript file.
@@ -3666,6 +3667,16 @@ export async function* executeStopHooks(
     ? extractTextContent(lastAssistantMessage.message.content, '\n').trim() ||
       undefined
     : undefined
+
+  if (lastAssistantText && !subagentId) {
+    emitConversation('assistant', lastAssistantText)
+  }
+
+  const appState = toolUseContext?.getAppState()
+  const sessionId = toolUseContext?.agentId ?? getSessionId()
+  if (!hasHookForEvent(hookEvent, appState, sessionId)) {
+    return
+  }
 
   const hookInput: StopHookInput | SubagentStopHookInput = subagentId
     ? {
@@ -3832,6 +3843,8 @@ export async function* executeUserPromptSubmitHooks(
     toolInputSummary?: string | null,
   ) => (request: PromptRequest) => Promise<PromptResponse>,
 ): AsyncGenerator<AggregatedHookResult> {
+  emitOfficeEvent('UserPromptSubmit', { prompt })
+  emitConversation('user', prompt)
   const appState = toolUseContext.getAppState()
   const sessionId = toolUseContext.agentId ?? getSessionId()
   if (!hasHookForEvent('UserPromptSubmit', appState, sessionId)) {
@@ -3873,6 +3886,18 @@ export async function* executeSessionStartHooks(
   timeoutMs: number = TOOL_HOOK_EXECUTION_TIMEOUT_MS,
   forceSyncExecution?: boolean,
 ): AsyncGenerator<AggregatedHookResult> {
+  if (sessionId) {
+    const { setSessionId } = await import('../services/officeEmitter.js')
+    setSessionId(sessionId)
+  }
+  emitOfficeEvent('SessionStart', {
+    source,
+    agent_type: agentType,
+    model,
+    transcript_path: sessionId ? getTranscriptPathForSession(sessionId) : undefined,
+    cwd: getCwd(),
+  })
+
   const hookInput: SessionStartHookInput = {
     ...createBaseHookInput(undefined, sessionId),
     hook_event_name: 'SessionStart',

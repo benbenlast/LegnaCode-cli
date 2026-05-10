@@ -127,8 +127,10 @@ export function parseSessionInfoFromLite(
     extractLastJsonStringField(tail, 'gitBranch') ||
     extractJsonStringField(head, 'gitBranch') ||
     undefined
-  const sessionCwd =
+  const rawCwd =
     extractJsonStringField(head, 'cwd') || projectPath || undefined
+  // Resolve relative cwd from migrated sessions
+  const sessionCwd = rawCwd === '.' ? (projectPath || process.cwd()) : rawCwd
   // Type-scope tag extraction to the {"type":"tag"} JSONL line to avoid
   // collision with tool_use inputs containing a `tag` parameter (git tag,
   // Docker tags, cloud resource tags). Mirrors sessionStorage.ts:608.
